@@ -28,8 +28,8 @@ COPY synthetic_data_part2.json .
 COPY synthetic_data_part3.json .
 COPY schema.sql .
 
-# Startup script: seed DB if it doesn't exist, then launch API
-RUN printf '#!/bin/bash\nset -e\nif [ ! -f /app/clinical_trial.db ]; then\n  echo "First run — seeding database..."\n  python /app/create_sqlite_db.py\n  echo "Database ready."\nfi\nexec uvicorn api_sqlite:app --host 0.0.0.0 --port ${PORT:-8000}\n' > /app/start.sh \
+# Startup script: always re-seed DB then launch API (ensures latest data on every deploy)
+RUN printf '#!/bin/bash\nset -e\necho "Seeding database..."\npython /app/create_sqlite_db.py\necho "Database ready."\nexec uvicorn api_sqlite:app --host 0.0.0.0 --port ${PORT:-8000}\n' > /app/start.sh \
   && chmod +x /app/start.sh
 
 EXPOSE 8000
