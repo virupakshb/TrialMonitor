@@ -1,0 +1,281 @@
+# Efficacy Endpoint Rules for Protocol NVX-1218.22
+# Protocol: NovaPlex-450 in Advanced NSCLC (NexaVance Therapeutics Inc.)
+# Reference: Protocol Section 5 - Efficacy Endpoints
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+endpoint_rules:
+
+  # =========================================================================
+  # EP-001: Disease Progression per RECIST 1.1 (Primary Endpoint Event)
+  # =========================================================================
+  - rule_id: "EP-001"
+    name: "Disease Progression per RECIST 1.1 (PFS Event)"
+    description: "Detection of disease progression per RECIST 1.1 - primary endpoint event (PFS)"
+    category: "efficacy"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 5.1"
+    severity: "info"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "PFS_EVENT_DETECTED"
+
+    domain_knowledge: |
+      RECIST 1.1 Progression Definition:
+      - Progressive Disease (PD) = >= 20% increase in sum of diameters of target lesions
+        (reference: smallest recorded sum since baseline), AND
+      - Absolute increase >= 5 mm
+      OR
+      - Unequivocal progression of existing non-target lesions
+      OR
+      - Appearance of one or more new lesions
+
+      PFS = Progression-Free Survival
+      - Time from randomization to first occurrence of:
+        a) Radiological progression per RECIST 1.1
+        b) Death from any cause
+
+      Required data for PFS event determination:
+      - Tumor assessment date and overall_response field
+      - new_lesions and progression flags
+      - Assessment method (CT preferred per RECIST)
+
+    parameters:
+      search_terms:
+        conditions:
+          - "progression"
+          - "PD"
+          - "progressive disease"
+          - "new lesion"
+
+      evaluation_criteria: |
+        Flag PFS event if tumor assessment shows:
+        - overall_response = 'PD' (Progressive Disease)
+        - OR new_lesions = True
+        - OR progression = True
+        Record the assessment date as the PFS event date.
+        If multiple assessments: use the earliest PD/progression date.
+
+    tools_needed:
+      - "get_tumor_assessments"
+      - "check_medical_history"
+
+  # =========================================================================
+  # EP-002: Best Overall Response (BOR) Assessment
+  # =========================================================================
+  - rule_id: "EP-002"
+    name: "Best Overall Response (BOR) Determination"
+    description: "Determine the best overall tumor response achieved by the subject per RECIST 1.1"
+    category: "efficacy"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 5.2"
+    severity: "info"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "BOR_REVIEW_REQUIRED"
+
+    domain_knowledge: |
+      Best Overall Response (BOR) Hierarchy (RECIST 1.1):
+      1. CR (Complete Response): Disappearance of all target lesions
+      2. PR (Partial Response): >= 30% decrease in sum of target lesion diameters
+      3. SD (Stable Disease): Neither sufficient shrinkage for PR nor increase for PD
+      4. PD (Progressive Disease): >= 20% increase or new lesions
+      5. NE (Not Evaluable): Assessment not performed or inadequate
+
+      BOR Rules:
+      - BOR = best response category confirmed across sequential assessments
+      - CR and PR require confirmation at next assessment (>= 4 weeks apart)
+      - Objective Response Rate (ORR) = CR + PR rate
+
+    parameters:
+      search_terms:
+        conditions:
+          - "complete response"
+          - "partial response"
+          - "stable disease"
+          - "progressive disease"
+          - "CR"
+          - "PR"
+          - "SD"
+          - "PD"
+
+      evaluation_criteria: |
+        Review all tumor assessments for this subject.
+        Determine BOR by identifying the best response category achieved.
+        Flag for review if:
+        - CR or PR not confirmed at subsequent assessment
+        - Conflicting response categories between assessments
+        - Missing assessments at scheduled timepoints
+        Record BOR for ORR analysis.
+
+    tools_needed:
+      - "get_tumor_assessments"
+
+  # =========================================================================
+  # EP-003: Overall Survival Event Detection
+  # =========================================================================
+  - rule_id: "EP-003"
+    name: "Overall Survival (OS) Event Detection"
+    description: "Detection of death from any cause (Overall Survival secondary endpoint event)"
+    category: "efficacy"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 5.3"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "OS_EVENT_DETECTED"
+
+    domain_knowledge: |
+      Overall Survival (OS):
+      - Secondary endpoint of the trial
+      - Defined as time from randomization to death from any cause
+      - Subjects censored at last known alive date if not deceased
+
+      Data sources for OS:
+      - Study status: if study_status = 'Died' or discontinuation_reason includes 'death'
+      - AE data: fatal AEs (ctcae_grade = 5 or severity = 'Death')
+      - Medical history: any documented death or terminal event
+
+      OS Follow-up:
+      - Survival data collected until death or study closure
+      - Survival contact every 3 months post-EOT
+
+    parameters:
+      search_terms:
+        conditions:
+          - "death"
+          - "died"
+          - "deceased"
+          - "fatal"
+          - "mortality"
+
+      evaluation_criteria: |
+        Flag OS event if:
+        - Subject study_status is 'Died' or discontinuation_reason mentions death
+        - Any AE has ctcae_grade = 5 (death) or severity = 'Death'
+        - Medical history documents patient death
+        Record date of death for OS analysis.
+
+    tools_needed:
+      - "check_medical_history"
+      - "get_adverse_events"
+
+  # =========================================================================
+  # EP-004: Duration of Response (DoR) Tracking
+  # =========================================================================
+  - rule_id: "EP-004"
+    name: "Duration of Response (DoR) Tracking"
+    description: "Track duration from first objective response to progression or death (DoR endpoint)"
+    category: "efficacy"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 5.4"
+    severity: "info"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DOR_EVENT_DETECTED"
+
+    domain_knowledge: |
+      Duration of Response (DoR):
+      - Applicable ONLY to subjects who achieved CR or PR (objective responders)
+      - Defined as: time from first documented CR or PR to first documented PD or death
+      - DoR is censored at last tumor assessment for subjects without progression
+
+      Steps to calculate DoR:
+      1. Identify first CR or PR assessment date
+      2. Identify first subsequent PD or death date
+      3. DoR = PD/death date - first CR/PR date
+
+    parameters:
+      search_terms:
+        conditions:
+          - "complete response"
+          - "partial response"
+          - "progressive disease"
+          - "response"
+
+      evaluation_criteria: |
+        For subjects with CR or PR:
+        - Identify the date of first objective response
+        - Identify subsequent progression (PD) or death date
+        - Flag if DoR data is complete for analysis
+        - Flag if subject progressed after objective response (DoR event)
+
+    tools_needed:
+      - "get_tumor_assessments"
+
+  # =========================================================================
+  # EP-005: QoL Assessment Completion Check
+  # =========================================================================
+  - rule_id: "EP-005"
+    name: "Quality of Life (QoL) Assessment Completion"
+    description: "EORTC QLQ-C30 questionnaire completion at required study timepoints"
+    category: "efficacy"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 5.5"
+    severity: "minor"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DATA_QUALITY_ISSUE"
+
+    domain_knowledge: |
+      QoL Assessment Requirements (EORTC QLQ-C30):
+      - Required at: Baseline (Day 1), Week 9, Week 18, Week 24 (End of Treatment), Follow-up
+      - Must be completed BEFORE study drug administration or other assessments
+      - Subject self-administered questionnaire (no assistance from site staff)
+      - EORTC QLQ-C30 contains 30 items covering functional scales and symptom scales
+
+      Missing QoL assessments = protocol deviation (minor) and incomplete secondary endpoint data.
+
+    parameters:
+      search_terms:
+        conditions:
+          - "QoL"
+          - "quality of life"
+          - "EORTC"
+          - "QLQ-C30"
+          - "questionnaire"
+
+      evaluation_criteria: |
+        Review visit records for QoL assessment visits (Baseline, Week 9, 18, 24, Follow-up).
+        Flag if QoL questionnaire was not completed at a required timepoint.
+        Check visit notes for documentation of QoL completion.
+
+    tools_needed:
+      - "get_visits"

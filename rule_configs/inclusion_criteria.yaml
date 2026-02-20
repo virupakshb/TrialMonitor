@@ -1,0 +1,613 @@
+# Inclusion Criteria Configuration for Protocol NVX-1218.22
+# Protocol: NovaPlex-450 in Advanced NSCLC (NexaVance Therapeutics Inc.)
+# Reference: Protocol Section 4.1 - Inclusion Criteria
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+inclusion_criteria:
+
+  # =========================================================================
+  # INCL-001: Age >= 18 years (DETERMINISTIC - demographics field)
+  # =========================================================================
+  - rule_id: "INCL-001"
+    name: "Age >= 18 Years"
+    description: "Subject must be >= 18 years of age at time of screening"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "BOOLEAN_STATUS_TEMPLATE"
+    protocol_section: "Section 4.1.1"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    parameters:
+      field_name: "age"
+      operator: ">="
+      threshold: 18
+      rule_type: "inclusion"
+
+    tools_needed: []
+
+  # =========================================================================
+  # INCL-002: Histologically/Cytologically Confirmed NSCLC (LLM)
+  # =========================================================================
+  - rule_id: "INCL-002"
+    name: "Confirmed NSCLC Diagnosis"
+    description: "Histologically or cytologically confirmed Non-Small Cell Lung Cancer (NSCLC)"
+    category: "inclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.1.2"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    domain_knowledge: |
+      NSCLC Subtypes (all acceptable):
+      - Adenocarcinoma (most common, ~40%)
+      - Squamous cell carcinoma
+      - Large cell carcinoma
+      - Other NSCLC not otherwise specified (NOS)
+
+      NOT acceptable (excluded SCLC or other):
+      - Small cell lung cancer (SCLC) - different biology
+      - Carcinoid tumors
+      - Mesothelioma
+
+      Confirmation Method:
+      - Histological: tissue biopsy (preferred)
+      - Cytological: fine needle aspirate, bronchoscopy washings, pleural fluid
+      - Both must be from pathology report
+
+    parameters:
+      search_terms:
+        conditions:
+          - "NSCLC"
+          - "non-small cell lung cancer"
+          - "adenocarcinoma"
+          - "squamous cell carcinoma"
+          - "large cell carcinoma"
+          - "lung cancer"
+          - "lung adenocarcinoma"
+          - "lung squamous"
+
+      evaluation_criteria: |
+        Subject MEETS inclusion criterion if:
+        - Medical history or primary diagnosis documents histologically OR cytologically confirmed NSCLC
+        - Pathology confirms NSCLC subtype (adenocarcinoma, squamous, large cell, or NSCLC NOS)
+        Subject does NOT meet criterion if:
+        - Only clinical diagnosis without histological/cytological confirmation
+        - Diagnosis is SCLC, carcinoid, or mesothelioma
+        - No lung cancer diagnosis found
+
+    tools_needed:
+      - "check_medical_history"
+
+  # =========================================================================
+  # INCL-003: Stage IV or Recurrent NSCLC (LLM)
+  # =========================================================================
+  - rule_id: "INCL-003"
+    name: "Stage IV or Recurrent NSCLC Not Amenable to Curative Therapy"
+    description: "Stage IV disease or recurrent NSCLC not amenable to curative therapy"
+    category: "inclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.1.3"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    domain_knowledge: |
+      Stage IV NSCLC:
+      - Any M1 disease by AJCC 8th edition staging
+      - Includes: malignant pleural/pericardial effusion, contralateral lung nodules,
+        distant metastases (bone, liver, adrenal, brain, etc.)
+
+      Recurrent NSCLC Not Amenable to Curative Therapy:
+      - Previously treated early-stage NSCLC that has recurred
+      - Recurrence must be documented and not amenable to curative resection or radiation
+
+      NOT eligible:
+      - Stage I-III NSCLC that could benefit from curative intent treatment
+      - NSCLC that has not recurred after primary curative therapy
+
+    parameters:
+      search_terms:
+        conditions:
+          - "Stage IV"
+          - "Stage 4"
+          - "metastatic"
+          - "recurrent"
+          - "advanced"
+          - "NSCLC"
+          - "M1"
+
+      evaluation_criteria: |
+        Subject MEETS inclusion criterion if:
+        - Staging confirms Stage IV (M1) disease
+        - OR documented recurrent NSCLC with no curative option
+        Subject does NOT meet criterion if:
+        - Stage I, II, or III NSCLC
+        - No evidence of distant metastasis or unresectable disease
+
+    tools_needed:
+      - "check_medical_history"
+
+  # =========================================================================
+  # INCL-004: ECOG Performance Status 0-1 (DETERMINISTIC)
+  # =========================================================================
+  - rule_id: "INCL-004"
+    name: "ECOG Performance Status 0 or 1"
+    description: "Eastern Cooperative Oncology Group (ECOG) Performance Status of 0 or 1"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.4"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    parameters:
+      field_name: "ecog_performance_status"
+      operator: "<="
+      threshold: 1
+      rule_type: "inclusion"
+
+    tools_needed: []
+
+  # =========================================================================
+  # INCL-005: PD-L1 Expression >= 50% (LLM)
+  # =========================================================================
+  - rule_id: "INCL-005"
+    name: "PD-L1 Expression >= 50% by IHC"
+    description: "PD-L1 expression >= 50% by immunohistochemistry (IHC)"
+    category: "inclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.1.5"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    domain_knowledge: |
+      PD-L1 Testing Requirements:
+      - Must be tested by validated IHC assay (22C3, 28-8, or SP142 antibody clones)
+      - TPS (Tumor Proportion Score) must be >= 50%
+      - Testing must be on adequate tumor tissue (biopsy or archival if < 2 years old)
+      - Local laboratory testing accepted; central confirmation preferred
+
+      PD-L1 Score Interpretation:
+      - TPS >= 50%: High expression, eligible
+      - TPS 1-49%: Intermediate, NOT eligible for this trial
+      - TPS 0%: Negative, NOT eligible
+      - Unknown/insufficient tissue: Requires repeat testing
+
+    parameters:
+      search_terms:
+        conditions:
+          - "PD-L1"
+          - "PD L1"
+          - "PDL1"
+          - "tumor proportion score"
+          - "TPS"
+          - "IHC"
+
+      evaluation_criteria: |
+        Subject MEETS inclusion criterion if:
+        - PD-L1 TPS documented as >= 50% by IHC
+        Subject does NOT meet criterion if:
+        - PD-L1 TPS < 50%
+        - PD-L1 testing not done or result unknown
+        - Insufficient tumor tissue for testing
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-006: Measurable Disease per RECIST 1.1 (LLM)
+  # =========================================================================
+  - rule_id: "INCL-006"
+    name: "Measurable Disease per RECIST 1.1"
+    description: "At least one measurable lesion per RECIST 1.1 criteria"
+    category: "inclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.1.6"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+
+    domain_knowledge: |
+      RECIST 1.1 Measurable Disease:
+      - At least one target lesion:
+        * >= 10 mm in longest diameter on CT scan (with slice thickness <= 5 mm)
+        * >= 15 mm for lymph nodes (short axis)
+      - Measurable lesion must not have been previously irradiated
+
+      Non-target lesions (not measurable):
+      - < 10 mm lesions
+      - Bone lesions, ascites, pleural/pericardial effusions
+      - Previously irradiated lesions (unless clear progression documented)
+
+    parameters:
+      search_terms:
+        conditions:
+          - "measurable"
+          - "RECIST"
+          - "target lesion"
+          - "tumor assessment"
+
+      evaluation_criteria: |
+        Subject MEETS inclusion criterion if:
+        - Tumor assessment confirms at least one measurable target lesion per RECIST 1.1
+        - Lesion is >= 10 mm (soft tissue) or >= 15 mm (lymph node)
+        Subject does NOT meet criterion if:
+        - Only non-measurable lesions present
+        - All lesions are < 10 mm or previously irradiated
+        - No tumor assessment on file
+
+    tools_needed:
+      - "check_medical_history"
+      - "get_tumor_assessments"
+
+  # =========================================================================
+  # INCL-007: ANC >= 1.5 x 10^9/L (DETERMINISTIC)
+  # =========================================================================
+  - rule_id: "INCL-007"
+    name: "Adequate ANC (Absolute Neutrophil Count)"
+    description: "Absolute Neutrophil Count (ANC) >= 1.5 x 10^9/L"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.7"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "Neutrophils"
+      operator: ">="
+      threshold: 1.5
+      unit: "10^9/L"
+      timepoint: "latest"
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-008: Platelets >= 100 x 10^9/L (DETERMINISTIC)
+  # =========================================================================
+  - rule_id: "INCL-008"
+    name: "Adequate Platelet Count"
+    description: "Platelet count >= 100 x 10^9/L"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.7"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "Platelets"
+      operator: ">="
+      threshold: 100.0
+      unit: "10^9/L"
+      timepoint: "latest"
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-009: Hemoglobin >= 9 g/dL (DETERMINISTIC)
+  # =========================================================================
+  - rule_id: "INCL-009"
+    name: "Adequate Hemoglobin"
+    description: "Hemoglobin >= 9 g/dL"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.7"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "Hemoglobin"
+      operator: ">="
+      threshold: 9.0
+      unit: "g/dL"
+      timepoint: "latest"
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-010: Adequate Hepatic Function (DETERMINISTIC - 3 sub-checks)
+  # Total Bilirubin <= 1.5 x ULN
+  # =========================================================================
+  - rule_id: "INCL-010A"
+    name: "Adequate Hepatic Function - Total Bilirubin"
+    description: "Total bilirubin <= 1.5 x ULN"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.8"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "Bilirubin"
+      operator: "<="
+      threshold: 1.5
+      unit: "x ULN"
+      timepoint: "latest"
+      # Stored as actual value vs ULN multiple in DB; check raw value <= 1.5 * ULN upper
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  - rule_id: "INCL-010B"
+    name: "Adequate Hepatic Function - AST"
+    description: "AST (SGOT) <= 2.5 x ULN"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.8"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "AST"
+      operator: "<="
+      threshold: 112.5
+      unit: "U/L"
+      timepoint: "latest"
+      # 2.5 x ULN: ULN for AST is typically 45 U/L => 2.5 x 45 = 112.5 U/L
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  - rule_id: "INCL-010C"
+    name: "Adequate Hepatic Function - ALT"
+    description: "ALT (SGPT) <= 2.5 x ULN"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.8"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "ALT"
+      operator: "<="
+      threshold: 112.5
+      unit: "U/L"
+      timepoint: "latest"
+      # 2.5 x ULN: ULN for ALT is typically 45 U/L => 2.5 x 45 = 112.5 U/L
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-011: Creatinine Clearance >= 50 mL/min (DETERMINISTIC)
+  # =========================================================================
+  - rule_id: "INCL-011"
+    name: "Adequate Renal Function - Creatinine Clearance"
+    description: "Creatinine clearance >= 50 mL/min (Cockcroft-Gault or measured GFR)"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.1.9"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+
+    parameters:
+      test_name: "Creatinine Clearance"
+      operator: ">="
+      threshold: 50.0
+      unit: "mL/min"
+      timepoint: "latest"
+      rule_type: "inclusion"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-012: Negative Pregnancy Test (LLM - females only)
+  # =========================================================================
+  - rule_id: "INCL-012"
+    name: "Negative Pregnancy Test (WOCBP)"
+    description: "Negative serum or urine pregnancy test for women of childbearing potential"
+    category: "inclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.1.10"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    domain_knowledge: |
+      Pregnancy Testing Requirements:
+      - Required for all females of childbearing potential (FOCBP/WOCBP)
+      - Test must be negative within 72 hours before first dose
+      - Serum beta-hCG preferred; urine hCG acceptable
+
+      NOT required (exceptions):
+      - Male subjects
+      - Post-menopausal women: >= 12 months of spontaneous amenorrhea
+      - Surgically sterile women: documented bilateral oophorectomy, hysterectomy,
+        or bilateral tubal ligation
+
+    parameters:
+      search_terms:
+        conditions:
+          - "pregnancy test"
+          - "beta-hCG"
+          - "hCG"
+          - "pregnancy"
+        rule_type: "inclusion"
+
+      evaluation_criteria: |
+        Subject MEETS inclusion criterion if:
+        - Male subject (not applicable)
+        - Post-menopausal or surgically sterile female
+        - Female with documented negative pregnancy test at screening
+        Subject does NOT meet criterion if:
+        - Female of childbearing potential with positive or missing pregnancy test
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_labs"
+
+  # =========================================================================
+  # INCL-013: Written Informed Consent (Boolean)
+  # =========================================================================
+  - rule_id: "INCL-013"
+    name: "Written Informed Consent"
+    description: "Subject has provided written informed consent prior to study procedures"
+    category: "inclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "BOOLEAN_STATUS_TEMPLATE"
+    protocol_section: "Section 4.1.11"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+
+    parameters:
+      field_name: "consent_date"
+      operator: "!="
+      threshold: null
+      rule_type: "inclusion"
+
+    tools_needed: []

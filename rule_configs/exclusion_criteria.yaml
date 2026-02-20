@@ -1,0 +1,597 @@
+# Exclusion Criteria Configuration for Protocol NVX-1218.22
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+exclusion_criteria:
+  
+  # =========================================================================
+  # EXCL-001: Prior PD-1/PD-L1 Therapy (COMPLEX - LLM + Tools)
+  # =========================================================================
+  - rule_id: "EXCL-001"
+    name: "Prior PD-1/PD-L1 or CTLA-4 Inhibitor Therapy"
+    description: "Prior therapy with PD-1/PD-L1 or CTLA-4 checkpoint inhibitors"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.1"
+    severity: "critical"
+    status: "active"
+    
+    # Applicability by phase
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+        severity: "critical"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+        severity: "critical"
+      post_randomization:
+        check: false  # Don't routinely check
+        action_if_discovered: "PROTOCOL_DEVIATION_MAJOR"
+        severity: "major"
+    
+    # Domain knowledge for LLM
+    domain_knowledge: |
+      PD-1 Inhibitors (brand names):
+      - Pembrolizumab (Keytruda)
+      - Nivolumab (Opdivo)
+      - Cemiplimab (Libtayo)
+      - Dostarlimab (Jemperli)
+      
+      PD-L1 Inhibitors:
+      - Atezolizumab (Tecentriq)
+      - Durvalumab (Imfinzi)
+      - Avelumab (Bavencio)
+      
+      CTLA-4 Inhibitors:
+      - Ipilimumab (Yervoy)
+      - Tremelimumab (Imjudo)
+      
+      This exclusion applies to ANY prior use regardless of:
+      - Duration of treatment
+      - Time since last dose
+      - Reason for discontinuation
+      - Response to therapy
+    
+    # Search terms
+    parameters:
+      search_terms:
+        drug_names:
+          - "pembrolizumab"
+          - "keytruda"
+          - "nivolumab"
+          - "opdivo"
+          - "cemiplimab"
+          - "libtayo"
+          - "dostarlimab"
+          - "atezolizumab"
+          - "tecentriq"
+          - "durvalumab"
+          - "imfinzi"
+          - "avelumab"
+          - "bavencio"
+          - "ipilimumab"
+          - "yervoy"
+          - "tremelimumab"
+        drug_classes:
+          - "PD-1 inhibitor"
+          - "PD-L1 inhibitor"
+          - "CTLA-4 inhibitor"
+          - "checkpoint inhibitor"
+          - "anti-PD-1"
+          - "anti-PD-L1"
+          - "immunotherapy"
+      
+      evaluation_criteria: |
+        Subject is EXCLUDED if:
+        - Medical history shows prior use of ANY listed agent
+        - Concomitant medications include ANY listed agent
+        - Subject reports prior checkpoint inhibitor therapy
+        
+        Evidence to gather:
+        - Check medical history for drug names (generic and brand)
+        - Check medical history for drug class terms
+        - Check conmeds for any of these agents
+        - Verify treatment dates and duration
+    
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+  
+  # =========================================================================
+  # EXCL-002: Active CNS Metastases (COMPLEX - LLM + Tools)
+  # =========================================================================
+  - rule_id: "EXCL-002"
+    name: "Active or Symptomatic CNS Metastases"
+    description: "Active or symptomatic central nervous system metastases"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.2"
+    severity: "critical"
+    status: "active"
+    
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      post_randomization:
+        check: true
+        action_if_discovered: "DISEASE_PROGRESSION"
+    
+    domain_knowledge: |
+      CNS Metastases Definition:
+      - Brain metastases (parenchymal)
+      - Leptomeningeal disease
+      - Spinal cord metastases
+      
+      "Active" means:
+      - Untreated CNS metastases
+      - Progressive CNS disease despite treatment
+      - Requiring ongoing treatment (radiation, surgery)
+      
+      "Symptomatic" means:
+      - Neurological symptoms (headache, seizures, focal deficits)
+      - Requiring corticosteroids for symptom control
+      - Requiring anti-epileptic medications
+      
+      Acceptable (NOT excluded):
+      - Treated CNS metastases that are:
+        * Stable for >=4 weeks
+        * Asymptomatic
+        * Off corticosteroids for >=2 weeks
+    
+    parameters:
+      search_terms:
+        conditions:
+          - "CNS metastases"
+          - "brain metastases"
+          - "leptomeningeal"
+          - "spinal cord metastases"
+        medications:
+          - "dexamethasone"
+          - "corticosteroid"
+          - "levetiracetam"
+          - "phenytoin"
+          - "anti-epileptic"
+    
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+      - "get_tumor_assessments"
+
+  # =========================================================================
+  # EXCL-003: Active Autoimmune Disease (COMPLEX - LLM + Tools)
+  # =========================================================================
+  - rule_id: "EXCL-003"
+    name: "Active Autoimmune Disease Requiring Systemic Treatment"
+    description: "Active autoimmune disease requiring systemic treatment within the past 2 years"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.3"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+      post_randomization:
+        check: false
+        action_if_discovered: "PROTOCOL_DEVIATION_MAJOR"
+
+    domain_knowledge: |
+      Active Autoimmune Disease Exclusion:
+      - Any autoimmune condition requiring systemic immunosuppressive/modifying therapy
+      - Includes: rheumatoid arthritis, lupus (SLE), IBD (Crohn's, ulcerative colitis),
+        psoriasis requiring systemic therapy, multiple sclerosis, myasthenia gravis,
+        Sjogren's syndrome, vasculitis, scleroderma, dermatomyositis, polymyositis
+
+      Systemic Treatment includes:
+      - Systemic corticosteroids (prednisone, dexamethasone, methylprednisolone)
+      - DMARDs: methotrexate, hydroxychloroquine, sulfasalazine, leflunomide
+      - Biologics: TNF inhibitors, IL-6 inhibitors, JAK inhibitors, rituximab
+      - Calcineurin inhibitors: cyclosporine, tacrolimus
+
+      NOT excluded (acceptable conditions):
+      - Vitiligo (no systemic treatment needed)
+      - Hypothyroidism managed with thyroid replacement only
+      - Type 1 diabetes managed with insulin only
+      - Resolved childhood autoimmune disease (no treatment in >2 years)
+      - Topical/inhaled therapies only (not systemic)
+
+    parameters:
+      search_terms:
+        conditions:
+          - "autoimmune"
+          - "rheumatoid arthritis"
+          - "lupus"
+          - "SLE"
+          - "inflammatory bowel disease"
+          - "Crohn's"
+          - "ulcerative colitis"
+          - "multiple sclerosis"
+          - "myasthenia gravis"
+          - "Sjogren"
+          - "vasculitis"
+          - "scleroderma"
+          - "dermatomyositis"
+          - "psoriasis"
+        medications:
+          - "methotrexate"
+          - "hydroxychloroquine"
+          - "sulfasalazine"
+          - "leflunomide"
+          - "adalimumab"
+          - "infliximab"
+          - "etanercept"
+          - "rituximab"
+          - "cyclosporine"
+          - "tacrolimus"
+          - "prednisone"
+          - "prednisolone"
+        drug_classes:
+          - "DMARD"
+          - "biologic"
+          - "TNF inhibitor"
+          - "IL-6 inhibitor"
+          - "JAK inhibitor"
+          - "immunosuppressant"
+
+      evaluation_criteria: |
+        Subject is EXCLUDED if:
+        - Medical history documents an active autoimmune disease AND
+        - Currently receiving or received systemic treatment within past 2 years
+        Subject is NOT excluded if:
+        - Autoimmune condition managed only with topical/inhaled therapy
+        - Condition resolved and no systemic treatment for >2 years
+        - Condition is vitiligo, controlled hypothyroidism, or Type 1 diabetes (insulin only)
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+
+  # =========================================================================
+  # EXCL-004: Severe Hypersensitivity to Monoclonal Antibodies (LLM)
+  # =========================================================================
+  - rule_id: "EXCL-004"
+    name: "History of Severe Hypersensitivity to Monoclonal Antibodies"
+    description: "History of severe hypersensitivity reactions to monoclonal antibodies"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.4"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+      post_randomization:
+        check: false
+        action_if_discovered: "PROTOCOL_DEVIATION_MAJOR"
+
+    domain_knowledge: |
+      Severe Hypersensitivity to Monoclonal Antibodies:
+      - Applies to ANY prior monoclonal antibody treatment resulting in Grade 3-4 reaction
+      - NovaPlex-450 is a PD-L1/CTLA-4 dual checkpoint inhibitor (monoclonal antibody)
+
+      Severe reactions include:
+      - Grade 3: Symptomatic bronchospasm requiring treatment, allergy-related edema/angioedema
+      - Grade 4: Anaphylaxis, life-threatening hypersensitivity
+      - Anaphylactic shock requiring epinephrine
+
+      Monoclonal antibodies include all drugs ending in -mab or -umab:
+      - Checkpoint inhibitors (pembrolizumab, nivolumab, etc.)
+      - Oncology biologics (trastuzumab, bevacizumab, cetuximab, etc.)
+      - Other therapeutic monoclonal antibodies
+
+      NOT excluded:
+      - Mild/moderate infusion reactions (Grade 1-2) managed with premedication
+      - Hypersensitivity to non-monoclonal antibody drugs
+      - Successfully re-challenged with premedication
+
+    parameters:
+      search_terms:
+        conditions:
+          - "hypersensitivity"
+          - "anaphylaxis"
+          - "allergic reaction"
+          - "infusion reaction"
+          - "angioedema"
+          - "anaphylactic"
+        drug_classes:
+          - "monoclonal antibody"
+          - "biologic"
+          - "checkpoint inhibitor"
+
+      evaluation_criteria: |
+        Subject is EXCLUDED if:
+        - Medical history documents severe (Grade 3-4) hypersensitivity/anaphylaxis
+        - Reaction was attributed to a monoclonal antibody
+        Subject is NOT excluded if:
+        - Reaction was mild/moderate (Grade 1-2)
+        - Reaction was to a non-antibody drug
+        - Patient was successfully re-challenged
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+
+  # =========================================================================
+  # EXCL-005: Active Infection Requiring Systemic Therapy (LLM)
+  # =========================================================================
+  - rule_id: "EXCL-005"
+    name: "Active Infection Requiring Systemic Therapy"
+    description: "Active infection requiring systemic antimicrobial therapy at screening"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.5"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DELAY_RANDOMIZATION"
+      post_randomization:
+        check: true
+        action_if_discovered: "HOLD_TREATMENT"
+
+    domain_knowledge: |
+      Active Infection Definition:
+      - Any infection requiring ongoing systemic antibiotic, antifungal, or antiviral therapy
+      - This includes bacterial, fungal, or viral infections (except managed chronic viral hepatitis)
+      - "Systemic" = oral or IV therapy (not topical)
+
+      Systemic antimicrobials include:
+      - Antibiotics: amoxicillin, ciprofloxacin, cephalosporins, vancomycin, etc.
+      - Antifungals: fluconazole (oral/IV), voriconazole, caspofungin
+      - Antivirals: acyclovir (IV), ganciclovir (not chronic HBV/HCV treatment)
+
+      NOT excluded:
+      - Prophylactic antimicrobials (no active infection)
+      - Topical antibiotics/antifungals
+      - Chronic antiviral therapy for HIV (if HIV-negative), HBV, HCV maintenance
+
+    parameters:
+      search_terms:
+        conditions:
+          - "active infection"
+          - "pneumonia"
+          - "sepsis"
+          - "bacteremia"
+          - "cellulitis"
+          - "abscess"
+          - "fungal infection"
+          - "urinary tract infection"
+        medications:
+          - "amoxicillin"
+          - "ciprofloxacin"
+          - "cephalexin"
+          - "vancomycin"
+          - "fluconazole"
+          - "voriconazole"
+          - "caspofungin"
+          - "acyclovir"
+          - "ganciclovir"
+        drug_classes:
+          - "antibiotic"
+          - "antifungal"
+          - "antiviral"
+          - "antimicrobial"
+
+      evaluation_criteria: |
+        Subject is EXCLUDED if:
+        - Currently receiving systemic antimicrobial therapy for an active infection
+        - Medical history documents an ongoing active infection at screening
+        Subject is NOT excluded if:
+        - Taking prophylactic antimicrobials without active infection
+        - Using topical antimicrobials only
+        - On chronic stable viral suppression therapy (HBV, HCV maintenance)
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+
+  # =========================================================================
+  # EXCL-006: Known HIV, HBV, or HCV Infection (LLM)
+  # =========================================================================
+  - rule_id: "EXCL-006"
+    name: "Known HIV, HBV, or HCV Infection"
+    description: "Known HIV, Hepatitis B (HBV), or Hepatitis C (HCV) infection"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.6"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+      post_randomization:
+        check: false
+        action_if_discovered: "PROTOCOL_DEVIATION_MAJOR"
+
+    domain_knowledge: |
+      HIV, HBV, HCV Exclusion:
+      - Applies to any KNOWN positive status
+      - HIV: Any documented HIV-1 or HIV-2 infection
+      - HBV: HBsAg positive OR HBcAb positive with detectable HBV DNA
+      - HCV: Anti-HCV antibody positive with detectable HCV RNA
+
+      Evidence to look for:
+      - Medical history: HIV, hepatitis B, hepatitis C, viral hepatitis
+      - Medications: antiretrovirals (HIV), HBV antivirals (tenofovir, entecavir), HCV DAAs
+
+      Note: HCV with sustained virologic response (SVR) after treatment may be acceptable
+      at sponsor discretion - flag for medical monitor review.
+
+    parameters:
+      search_terms:
+        conditions:
+          - "HIV"
+          - "human immunodeficiency virus"
+          - "hepatitis B"
+          - "HBV"
+          - "HBsAg"
+          - "hepatitis C"
+          - "HCV"
+          - "viral hepatitis"
+        medications:
+          - "tenofovir"
+          - "entecavir"
+          - "lamivudine"
+          - "emtricitabine"
+          - "sofosbuvir"
+          - "ledipasvir"
+          - "antiretroviral"
+          - "HAART"
+          - "ART"
+        drug_classes:
+          - "antiretroviral"
+          - "HIV treatment"
+          - "HBV antiviral"
+          - "HCV antiviral"
+          - "direct-acting antiviral"
+
+      evaluation_criteria: |
+        Subject is EXCLUDED if:
+        - Medical history documents HIV, HBV, or HCV infection
+        - On antiretroviral therapy or hepatitis antiviral medication
+        - Any serological testing positive for HIV, HBsAg, or active HCV
+        Note: HCV SVR should be flagged for medical monitor review (not auto-excluded)
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+
+  # =========================================================================
+  # EXCL-007: Pregnant or Breastfeeding (Boolean + LLM)
+  # =========================================================================
+  - rule_id: "EXCL-007"
+    name: "Pregnant or Breastfeeding"
+    description: "Currently pregnant or breastfeeding at time of screening"
+    category: "exclusion"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 4.2.7"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      baseline:
+        check: true
+        action_if_violated: "DO_NOT_RANDOMIZE"
+      post_randomization:
+        check: true
+        action_if_discovered: "IMMEDIATE_DISCONTINUATION"
+
+    domain_knowledge: |
+      Pregnancy and Breastfeeding Exclusion:
+      - Applies to all females of childbearing potential (FOCBP)
+      - Pregnancy must be confirmed by serum or urine beta-hCG test
+      - Breastfeeding status is self-reported and documented in medical history
+
+      NOT applicable:
+      - Male subjects
+      - Post-menopausal women (no menstrual period for >= 12 months, confirmed)
+      - Surgically sterile women (hysterectomy, bilateral oophorectomy, bilateral tubal ligation)
+
+      Required at screening:
+      - Negative pregnancy test within 72 hours of first dose
+      - WOCBP must use highly effective contraception throughout study
+
+      Post-randomization discovery:
+      - If pregnancy occurs during study: immediate discontinuation required
+      - Pregnancy must be reported as SAE (serious adverse event)
+      - Follow-up required for pregnancy outcome
+
+    parameters:
+      search_terms:
+        conditions:
+          - "pregnancy"
+          - "pregnant"
+          - "breastfeeding"
+          - "nursing"
+          - "lactation"
+          - "gravid"
+        medications:
+          - "prenatal vitamin"
+          - "folic acid"
+          - "iron supplement"
+
+      evaluation_criteria: |
+        Subject is EXCLUDED if (female subjects only):
+        - Pregnancy test result is positive
+        - Medical history documents current pregnancy or breastfeeding
+        - Subject self-reports current breastfeeding
+        Subject is NOT excluded if:
+        - Male subject
+        - Post-menopausal female (>12 months without menses)
+        - Surgically sterile female
+        - Pregnancy test negative and not breastfeeding
+
+    tools_needed:
+      - "check_medical_history"
+      - "check_conmeds"
+
+  # =========================================================================
+  # EXCL-008: QTcF >470 msec (SIMPLE - Deterministic)
+  # =========================================================================
+  - rule_id: "EXCL-008"
+    name: "QTcF Prolongation >470 msec"
+    description: "QTcF >470 msec on screening ECG"
+    category: "exclusion"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 4.2.8"
+    severity: "critical"
+    status: "active"
+    
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      post_randomization:
+        check: true
+        action_if_discovered: "SAFETY_SIGNAL_AESI"
+    
+    parameters:
+      test_name: "QTcF"
+      operator: ">"
+      threshold: 470
+      unit: "msec"
+      timepoint: "screening"

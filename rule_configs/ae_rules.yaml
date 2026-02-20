@@ -1,0 +1,250 @@
+# Adverse Event Safety Rules for Protocol NVX-1218.22
+# Protocol: NovaPlex-450 in Advanced NSCLC (NexaVance Therapeutics Inc.)
+# Reference: Protocol Section 7 - Safety Monitoring and AE Reporting
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+ae_rules:
+
+  # =========================================================================
+  # AE-001: Serious Adverse Event (SAE) Detection
+  # =========================================================================
+  - rule_id: "AE-001"
+    name: "Serious Adverse Event (SAE) Detection"
+    description: "Detection of any serious adverse event requiring regulatory reporting"
+    category: "safety_ae"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SAE_REPORTING_TEMPLATE"
+    protocol_section: "Section 7.1"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      baseline:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "SAE_REPORT_REQUIRED"
+
+    parameters:
+      check_type: "sae_flag"
+      seriousness: "Yes"
+
+    tools_needed:
+      - "get_adverse_events"
+
+  # =========================================================================
+  # AE-002: Grade >= 3 AE Requiring Dose Modification
+  # =========================================================================
+  - rule_id: "AE-002"
+    name: "Grade >= 3 Adverse Event - Dose Modification Required"
+    description: "Any CTCAE Grade 3 or higher adverse event requiring dose modification or hold"
+    category: "safety_ae"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "AE_GRADING_TEMPLATE"
+    protocol_section: "Section 7.2"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DOSE_MODIFICATION_REQUIRED"
+
+    parameters:
+      check_type: "ae_grade"
+      min_grade: 3
+
+    tools_needed:
+      - "get_adverse_events"
+
+  # =========================================================================
+  # AE-003: Immune-Related AE of Special Interest (irAESI)
+  # =========================================================================
+  - rule_id: "AE-003"
+    name: "Immune-Related Adverse Event of Special Interest (irAESI)"
+    description: "Detection of immune-related AEs of special interest associated with checkpoint inhibitor therapy"
+    category: "safety_ae"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "AESI_DETECTION_TEMPLATE"
+    protocol_section: "Section 7.3"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "AESI_REPORT_REQUIRED"
+
+    domain_knowledge: |
+      Immune-Related AEs of Special Interest (irAESI) for PD-L1/CTLA-4 Inhibitors:
+
+      Endocrine irAEs:
+      - Immune-related thyroiditis (hyperthyroidism or hypothyroidism)
+      - Adrenal insufficiency / hypophysitis
+      - Type 1 diabetes mellitus (new onset)
+
+      Pulmonary irAEs:
+      - Immune-related pneumonitis
+      - Interstitial lung disease (ILD)
+
+      Hepatic irAEs:
+      - Immune-related hepatitis (transaminase elevation > 3x ULN)
+
+      Gastrointestinal irAEs:
+      - Immune-related colitis / diarrhea (Grade 2+)
+
+      Dermatological irAEs:
+      - Immune-related rash / dermatitis
+      - Steven-Johnson syndrome / TEN (rare)
+
+      Cardiac irAEs:
+      - Immune-related myocarditis (rare but life-threatening)
+
+      Renal irAEs:
+      - Immune-related nephritis
+
+      Neurological irAEs:
+      - Guillain-Barre syndrome
+      - Encephalitis
+
+      Any irAESI must be:
+      - Reported within 24 hours to sponsor medical monitor
+      - Managed per protocol-specific immunosuppression algorithm
+      - May require treatment hold or permanent discontinuation
+
+    parameters:
+      search_terms:
+        conditions:
+          - "pneumonitis"
+          - "colitis"
+          - "hepatitis"
+          - "thyroiditis"
+          - "adrenal insufficiency"
+          - "hypophysitis"
+          - "myocarditis"
+          - "nephritis"
+          - "encephalitis"
+          - "rash"
+          - "dermatitis"
+          - "immune-related"
+          - "irAE"
+
+      evaluation_criteria: |
+        Flag as AESI if:
+        - Any AE term matches immune-related conditions listed above
+        - Condition developed after initiation of NovaPlex-450
+        - No prior history of the condition before treatment start
+
+    tools_needed:
+      - "get_adverse_events"
+      - "check_medical_history"
+
+  # =========================================================================
+  # AE-004: SAE Timeline Compliance (SAE reported within 24 hours)
+  # =========================================================================
+  - rule_id: "AE-004"
+    name: "SAE Reporting Timeline Compliance"
+    description: "Serious adverse events must be reported to sponsor within 24 hours of awareness"
+    category: "safety_ae"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "SAE_REPORTING_TEMPLATE"
+    protocol_section: "Section 7.1.2"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "REPORTING_DEVIATION"
+
+    domain_knowledge: |
+      SAE Reporting Requirements (ICH E6):
+      - Investigator must report SAEs to sponsor within 24 hours of awareness
+      - Sponsor must report fatal/life-threatening unexpected SAEs to health authorities within 7 days
+      - All other unexpected SAEs reported within 15 days (expedited)
+      - Key fields: onset date, report date, relationship to study drug, outcome
+
+      Late reporting = protocol deviation requiring documentation and CAPA
+
+    parameters:
+      search_terms:
+        conditions:
+          - "serious adverse event"
+          - "SAE"
+          - "death"
+          - "life-threatening"
+          - "hospitalization"
+
+      evaluation_criteria: |
+        Flag as deviation if:
+        - SAE onset_date to report_date gap is > 1 day (24 hours)
+        - SAE documented but reported_date is missing
+        Review each SAE for timely reporting
+
+    tools_needed:
+      - "get_adverse_events"
+
+  # =========================================================================
+  # AE-005: Treatment-Related AE Leading to Discontinuation
+  # =========================================================================
+  - rule_id: "AE-005"
+    name: "Treatment-Related AE Leading to Discontinuation"
+    description: "Adverse event related to study drug resulting in treatment discontinuation"
+    category: "safety_ae"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "AE_GRADING_TEMPLATE"
+    protocol_section: "Section 7.4"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DISCONTINUATION_REVIEW"
+
+    domain_knowledge: |
+      Discontinuation Due to AE:
+      - Any AE that leads to permanent discontinuation of NovaPlex-450
+      - Must be reviewed by medical monitor and sponsor
+      - Discontinuation must be documented with reason and date
+      - Follow-up safety assessment required 30 days after last dose
+
+      Action taken codes that indicate discontinuation:
+      - "Drug withdrawn"
+      - "Drug permanently discontinued"
+      - "Treatment stopped"
+
+    parameters:
+      search_terms:
+        conditions:
+          - "discontinuation"
+          - "withdrawn"
+          - "drug stopped"
+
+      evaluation_criteria: |
+        Flag if:
+        - AE has relationship_to_study_drug = "Probable" or "Definite"
+        - AND action_taken includes "withdrawn" or "permanently discontinued"
+        - OR AE ctcae_grade >= 4
+
+    tools_needed:
+      - "get_adverse_events"
+      - "check_medical_history"

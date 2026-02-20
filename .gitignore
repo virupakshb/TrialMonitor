@@ -1,0 +1,42 @@
+# Secrets — never commit
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Database — seed locally, don't commit
+clinical_trial.db
+*.db
+*.sqlite
+
+# Logs
+*.log
+backend.log
+
+# Node
+frontend/node_modules/
+
+# Vite build output — Railway will build this
+frontend/dist/
+
+# Batch results (runtime data)
+batch_results/
+
+# Claude internal
+.claude/
+
+# Misc
+nul
+*.tmp
+eval_result.json

@@ -1,0 +1,195 @@
+{
+  "protocol": {
+    "protocol_number": "NVX-1218.22",
+    "protocol_name": "A Phase III, Randomized, Double-Blind, Placebo-Controlled Study Evaluating the Efficacy and Safety of NovaPlex-450 in Combination with Standard Chemotherapy in Patients with Advanced Non-Small Cell Lung Cancer",
+    "short_title": "NovaPlex-450 in Advanced NSCLC",
+    "sponsor": {
+      "name": "NexaVance Therapeutics Inc.",
+      "legal_entity": "NexaVance Therapeutics Inc.",
+      "address": "1250 Innovation Drive, Cambridge, MA 02139, USA",
+      "contact_name": "Dr. Sarah Mitchell",
+      "contact_email": "clinical.trials@nexavance.com",
+      "contact_phone": "+1-617-555-0142"
+    },
+    "phase": "III",
+    "indication": "Advanced Non-Small Cell Lung Cancer (NSCLC)",
+    "study_type": "Interventional",
+    "design": "Randomized, Double-Blind, Placebo-Controlled, Parallel Group",
+    "therapeutic_area": "Oncology",
+    "study_drug": {
+      "investigational_product": "NovaPlex-450",
+      "drug_class": "PD-L1/CTLA-4 Dual Checkpoint Inhibitor",
+      "dosage_form": "Intravenous Infusion",
+      "dose": "450 mg Q3W (every 3 weeks)",
+      "route": "Intravenous"
+    },
+    "objectives": {
+      "primary": "To evaluate progression-free survival (PFS) in patients treated with NovaPlex-450 plus chemotherapy versus placebo plus chemotherapy",
+      "secondary": [
+        "Overall survival (OS)",
+        "Objective response rate (ORR)",
+        "Duration of response (DoR)",
+        "Safety and tolerability",
+        "Quality of life (QoL) assessments"
+      ]
+    },
+    "endpoints": {
+      "primary": "Progression-Free Survival (PFS) by RECIST 1.1",
+      "secondary": [
+        "Overall Survival (OS)",
+        "Objective Response Rate (ORR)",
+        "Duration of Response",
+        "Incidence of Adverse Events",
+        "Changes in EORTC QLQ-C30 scores"
+      ]
+    },
+    "treatment_arms": [
+      {
+        "arm_id": 1,
+        "name": "NovaPlex-450 + Chemotherapy",
+        "description": "NovaPlex-450 450mg IV Q3W + Carboplatin/Pemetrexed",
+        "planned_subjects": 200
+      },
+      {
+        "arm_id": 2,
+        "name": "Placebo + Chemotherapy",
+        "description": "Placebo IV Q3W + Carboplatin/Pemetrexed",
+        "planned_subjects": 200
+      }
+    ],
+    "inclusion_criteria": [
+      "Age ≥18 years",
+      "Histologically or cytologically confirmed NSCLC",
+      "Stage IV disease or recurrent NSCLC not amenable to curative therapy",
+      "ECOG Performance Status 0-1",
+      "PD-L1 expression ≥50% by IHC",
+      "Measurable disease per RECIST 1.1",
+      "Adequate organ function: ANC ≥1.5 x 10^9/L, Platelets ≥100 x 10^9/L, Hemoglobin ≥9 g/dL",
+      "Adequate hepatic function: Total bilirubin ≤1.5 x ULN, AST/ALT ≤2.5 x ULN",
+      "Adequate renal function: Creatinine clearance ≥50 mL/min",
+      "Negative pregnancy test for women of childbearing potential",
+      "Written informed consent"
+    ],
+    "exclusion_criteria": [
+      "Prior therapy with PD-1/PD-L1 or CTLA-4 inhibitors",
+      "Active CNS metastases",
+      "Active autoimmune disease requiring systemic treatment",
+      "History of severe hypersensitivity to monoclonal antibodies",
+      "Active infection requiring systemic therapy",
+      "Known HIV, HBV, or HCV infection",
+      "Pregnant or breastfeeding",
+      "QTcF >470 msec on screening ECG"
+    ],
+    "study_duration": {
+      "treatment_period": "24 weeks",
+      "follow_up_period": "4 weeks",
+      "total_duration": "28 weeks",
+      "survival_follow_up": "Until death or study closure"
+    },
+    "visit_schedule": [
+      {
+        "visit_number": 1,
+        "visit_name": "Screening",
+        "day": -14,
+        "window_lower": -21,
+        "window_upper": -1,
+        "assessments": ["Informed Consent", "Demographics", "Medical History", "Vital Signs", "Physical Exam", "ECG", "Labs", "Tumor Assessment", "PD-L1 Testing"]
+      },
+      {
+        "visit_number": 2,
+        "visit_name": "Baseline/Randomization",
+        "day": 1,
+        "window_lower": 0,
+        "window_upper": 0,
+        "assessments": ["Randomization", "Vital Signs", "Labs", "Pregnancy Test", "QoL Questionnaire", "First Dose"]
+      },
+      {
+        "visit_number": 3,
+        "visit_name": "Week 3 (Cycle 1)",
+        "day": 21,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "AE Assessment", "Conmed Review", "Dose 2"]
+      },
+      {
+        "visit_number": 4,
+        "visit_name": "Week 6 (Cycle 2)",
+        "day": 42,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "AE Assessment", "Conmed Review", "Dose 3"]
+      },
+      {
+        "visit_number": 5,
+        "visit_name": "Week 9 (Cycle 3)",
+        "day": 63,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "Tumor Assessment", "AE Assessment", "ECG", "QoL", "Dose 4"]
+      },
+      {
+        "visit_number": 6,
+        "visit_name": "Week 12 (Cycle 4)",
+        "day": 84,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "AE Assessment", "Conmed Review", "Dose 5"]
+      },
+      {
+        "visit_number": 7,
+        "visit_name": "Week 15 (Cycle 5)",
+        "day": 105,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "AE Assessment", "Conmed Review", "Dose 6"]
+      },
+      {
+        "visit_number": 8,
+        "visit_name": "Week 18 (Cycle 6)",
+        "day": 126,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "Tumor Assessment", "AE Assessment", "ECG", "QoL", "Dose 7"]
+      },
+      {
+        "visit_number": 9,
+        "visit_name": "Week 21 (Cycle 7)",
+        "day": 147,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "AE Assessment", "Conmed Review", "Dose 8"]
+      },
+      {
+        "visit_number": 10,
+        "visit_name": "Week 24 (End of Treatment)",
+        "day": 168,
+        "window_lower": -3,
+        "window_upper": 3,
+        "assessments": ["Vital Signs", "Labs", "Tumor Assessment", "AE Assessment", "ECG", "QoL", "Final Dose"]
+      },
+      {
+        "visit_number": 11,
+        "visit_name": "Follow-up (Week 28)",
+        "day": 196,
+        "window_lower": -7,
+        "window_upper": 7,
+        "assessments": ["Vital Signs", "Labs", "Tumor Assessment", "AE Assessment", "Survival Status"]
+      }
+    ],
+    "sample_size": {
+      "planned_total": 400,
+      "per_arm": 200,
+      "number_of_sites": 40,
+      "enrollment_period": "24 months",
+      "study_start_date": "2024-03-15",
+      "estimated_completion_date": "2026-09-15"
+    },
+    "regulatory": {
+      "ind_number": "IND-145892",
+      "eudract_number": "2024-001234-56",
+      "ethics_approval": "Required at all sites",
+      "data_monitoring_committee": true,
+      "gcp_compliance": "ICH-GCP E6(R2)"
+    }
+  }
+}

@@ -1,0 +1,196 @@
+# Lab Safety Monitoring Rules for Protocol NVX-1218.22
+# Protocol: NovaPlex-450 in Advanced NSCLC (NexaVance Therapeutics Inc.)
+# Reference: Protocol Section 6 - Safety Monitoring / Dose Modification Guidelines
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+lab_safety_rules:
+
+  # =========================================================================
+  # LAB-001: Hepatotoxicity - ALT/AST > 3 x ULN (AESI)
+  # =========================================================================
+  - rule_id: "LAB-001"
+    name: "Hepatotoxicity Signal - ALT/AST Elevation"
+    description: "ALT or AST > 3 x ULN (immune-related hepatotoxicity AESI)"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.1"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "HOLD_TREATMENT_AESI"
+
+    parameters:
+      test_name: "ALT"
+      operator: ">"
+      threshold: 135.0
+      unit: "U/L"
+      timepoint: "latest"
+      # 3 x ULN: ULN for ALT = 45 U/L => 3 x 45 = 135 U/L
+      check_also: "AST"
+
+    tools_needed:
+      - "check_labs"
+
+  - rule_id: "LAB-001B"
+    name: "Hepatotoxicity Signal - AST Elevation"
+    description: "AST > 3 x ULN (immune-related hepatotoxicity AESI)"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.1"
+    severity: "critical"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "HOLD_TREATMENT_AESI"
+
+    parameters:
+      test_name: "AST"
+      operator: ">"
+      threshold: 135.0
+      unit: "U/L"
+      timepoint: "latest"
+      # 3 x ULN: ULN for AST = 45 U/L => 3 x 45 = 135 U/L
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # LAB-002: Renal Toxicity - Creatinine > 1.5 x ULN
+  # =========================================================================
+  - rule_id: "LAB-002"
+    name: "Renal Toxicity - Creatinine Elevation"
+    description: "Serum creatinine > 1.5 x ULN indicating potential renal toxicity"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.2"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DOSE_MODIFICATION_REQUIRED"
+
+    parameters:
+      test_name: "Creatinine"
+      operator: ">"
+      threshold: 1.77
+      unit: "mg/dL"
+      timepoint: "latest"
+      # 1.5 x ULN: ULN for creatinine = 1.18 mg/dL => 1.5 x 1.18 = 1.77 mg/dL
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # LAB-003: Severe Neutropenia - ANC < 1.0 x 10^9/L
+  # =========================================================================
+  - rule_id: "LAB-003"
+    name: "Severe Neutropenia - ANC < 1.0 x 10^9/L"
+    description: "Absolute Neutrophil Count < 1.0 x 10^9/L (Grade 3 neutropenia)"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.3"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DOSE_MODIFICATION_REQUIRED"
+
+    parameters:
+      test_name: "Neutrophils"
+      operator: "<"
+      threshold: 1.0
+      unit: "10^9/L"
+      timepoint: "latest"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # LAB-004: Severe Thrombocytopenia - Platelets < 75 x 10^9/L
+  # =========================================================================
+  - rule_id: "LAB-004"
+    name: "Severe Thrombocytopenia - Platelets < 75 x 10^9/L"
+    description: "Platelet count < 75 x 10^9/L (Grade 3 thrombocytopenia)"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.3"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "DOSE_MODIFICATION_REQUIRED"
+
+    parameters:
+      test_name: "Platelets"
+      operator: "<"
+      threshold: 75.0
+      unit: "10^9/L"
+      timepoint: "latest"
+
+    tools_needed:
+      - "check_labs"
+
+  # =========================================================================
+  # LAB-005: Significant Anemia - Hemoglobin < 8 g/dL
+  # =========================================================================
+  - rule_id: "LAB-005"
+    name: "Significant Anemia - Hemoglobin < 8 g/dL"
+    description: "Hemoglobin < 8 g/dL requiring intervention"
+    category: "safety_lab"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 6.2.3"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "CLINICAL_REVIEW_REQUIRED"
+
+    parameters:
+      test_name: "Hemoglobin"
+      operator: "<"
+      threshold: 8.0
+      unit: "g/dL"
+      timepoint: "latest"
+
+    tools_needed:
+      - "check_labs"

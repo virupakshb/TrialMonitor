@@ -1,0 +1,256 @@
+# Protocol Deviation Rules for Protocol NVX-1218.22
+# Protocol: NovaPlex-450 in Advanced NSCLC (NexaVance Therapeutics Inc.)
+# Reference: Protocol Section 8 - Protocol Compliance and Deviations
+
+protocol:
+  number: "NVX-1218.22"
+  name: "NovaPlex-450 in Advanced NSCLC"
+
+deviation_rules:
+
+  # =========================================================================
+  # DEV-001: Visit Outside Protocol Window
+  # =========================================================================
+  - rule_id: "DEV-001"
+    name: "Visit Outside Protocol Window"
+    description: "Study visit conducted outside the protocol-defined visit window"
+    category: "protocol_visit"
+    complexity: "simple"
+    evaluation_type: "deterministic"
+    template_name: "SIMPLE_THRESHOLD_TEMPLATE"
+    protocol_section: "Section 8.1"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "PROTOCOL_DEVIATION_LOG"
+
+    parameters:
+      check_type: "visit_window"
+      # Visit windows per protocol schedule:
+      # Visits 3-10 (Treatment): +/- 3 days
+      # Visit 11 (Follow-up): +/- 7 days
+      window_days_treatment: 3
+      window_days_followup: 7
+
+    tools_needed:
+      - "check_visit_windows"
+
+  # =========================================================================
+  # DEV-002: Prohibited Concomitant Medication
+  # =========================================================================
+  - rule_id: "DEV-002"
+    name: "Prohibited Concomitant Medication"
+    description: "Subject receiving a concomitant medication prohibited per protocol"
+    category: "protocol_dose"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 8.2"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: true
+        action_if_violated: "SCREEN_FAILURE"
+      post_randomization:
+        check: true
+        action_if_violated: "PROTOCOL_DEVIATION_MAJOR"
+
+    domain_knowledge: |
+      Prohibited Concomitant Medications for NovaPlex-450 trial:
+
+      1. Other Checkpoint Inhibitors / Immunotherapy:
+         - PD-1, PD-L1, CTLA-4 inhibitors (see EXCL-001 list)
+
+      2. Systemic Corticosteroids (immunosuppressive doses):
+         - Prednisone >= 10 mg/day equivalent (or equivalent)
+         - EXCEPTION: physiological replacement doses (< 10 mg/day prednisone equivalent)
+         - EXCEPTION: inhaled/topical corticosteroids (allowed)
+         - EXCEPTION: short course < 7 days for non-chronic conditions
+
+      3. Other Systemic Immunosuppressants:
+         - Methotrexate, cyclosporine, azathioprine, tacrolimus, mycophenolate
+         - Biologics for autoimmune disease (TNF inhibitors, IL-6 inhibitors)
+
+      4. Live Vaccines (during treatment):
+         - Not permitted within 30 days of study drug administration
+
+      5. Strong CYP3A4 Inducers (may affect chemotherapy metabolism):
+         - Rifampicin, carbamazepine, phenytoin, St. John's Wort
+
+      Allowed:
+      - Antiemetics, analgesics, growth factors (G-CSF) per protocol
+      - Bisphosphonates, denosumab for bone metastases
+      - Prophylactic antimicrobials per institutional guidelines
+      - Hormone replacement therapy
+
+    parameters:
+      search_terms:
+        medications:
+          - "prednisone"
+          - "prednisolone"
+          - "dexamethasone"
+          - "methylprednisolone"
+          - "methotrexate"
+          - "cyclosporine"
+          - "azathioprine"
+          - "tacrolimus"
+          - "mycophenolate"
+          - "rifampicin"
+          - "carbamazepine"
+          - "phenytoin"
+        drug_classes:
+          - "checkpoint inhibitor"
+          - "immunosuppressant"
+          - "corticosteroid"
+          - "CYP3A4 inducer"
+          - "live vaccine"
+
+      evaluation_criteria: |
+        Flag as deviation if:
+        - Subject is on prednisone >= 10 mg/day equivalent (systemic corticosteroid)
+        - Subject is on systemic immunosuppressant (methotrexate, cyclosporine, etc.)
+        - Subject received a live vaccine within 30 days of study drug
+        - Subject is on strong CYP3A4 inducer affecting chemotherapy
+        Do NOT flag if:
+        - Corticosteroid is inhaled or topical only
+        - Prednisone equivalent < 10 mg/day (physiological replacement)
+        - Short course (< 7 days) for non-chronic condition
+
+    tools_needed:
+      - "check_conmeds"
+      - "check_medical_history"
+
+  # =========================================================================
+  # DEV-003: Required Assessment Not Performed
+  # =========================================================================
+  - rule_id: "DEV-003"
+    name: "Required Assessment Not Performed at Visit"
+    description: "A protocol-required assessment was not completed at the scheduled visit"
+    category: "protocol_visit"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 8.3"
+    severity: "minor"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "PROTOCOL_DEVIATION_LOG"
+
+    domain_knowledge: |
+      Required Assessments per Visit Schedule (NVX-1218.22):
+
+      All Treatment Visits (Weeks 3, 6, 9, 12, 15, 18, 21, 24):
+      - Vital signs (mandatory)
+      - AE assessment (mandatory)
+      - Concomitant medication review (mandatory)
+
+      Visits with Labs (Weeks 6, 9, 12, 15, 18, 21, 24, Follow-up):
+      - CBC with differential
+      - Comprehensive metabolic panel (LFTs, creatinine)
+
+      Tumor Assessment Visits (Weeks 9, 18, 24, Follow-up):
+      - CT/MRI of chest/abdomen/pelvis
+      - RECIST 1.1 assessment
+
+      ECG Visits (Weeks 9, 18, 24):
+      - 12-lead ECG with QTcF measurement
+
+      QoL Assessment Visits (Weeks 9, 18, 24):
+      - EORTC QLQ-C30 questionnaire
+
+    parameters:
+      search_terms:
+        conditions:
+          - "missing assessment"
+          - "not performed"
+          - "assessment not done"
+
+      evaluation_criteria: |
+        Review the visit record for the specified visit and check:
+        - Were vital signs documented?
+        - Was an AE assessment performed?
+        - Were required labs drawn (at lab visits)?
+        - Was tumor imaging done at tumor assessment visits?
+        - Was ECG performed at ECG visits?
+        - Was QoL questionnaire completed at QoL visits?
+        Flag any missing required assessment as a protocol deviation.
+
+    tools_needed:
+      - "get_visits"
+      - "check_labs"
+      - "get_ecg_results"
+      - "get_tumor_assessments"
+
+  # =========================================================================
+  # DEV-004: Dose Administration Outside Protocol Schedule
+  # =========================================================================
+  - rule_id: "DEV-004"
+    name: "Dose Administration Outside Protocol Schedule"
+    description: "Study drug administered outside the protocol-defined dosing schedule (Q3W +/- 3 days)"
+    category: "protocol_dose"
+    complexity: "complex"
+    evaluation_type: "llm_with_tools"
+    template_name: "COMPLEX_EXCLUSION_TEMPLATE"
+    protocol_section: "Section 8.4"
+    severity: "major"
+    status: "active"
+
+    applicable_phases:
+      screening:
+        check: false
+      post_randomization:
+        check: true
+        action_if_violated: "PROTOCOL_DEVIATION_MAJOR"
+
+    domain_knowledge: |
+      NovaPlex-450 Dosing Schedule:
+      - Dose: 450 mg IV Q3W (every 21 days)
+      - Allowable window: +/- 3 days from scheduled date
+      - Maximum cycles: 8 (through Week 24)
+
+      Dose dates per protocol:
+      - Dose 1: Day 1 (Baseline)
+      - Dose 2: Day 22 (+/- 3 days)
+      - Dose 3: Day 43 (+/- 3 days)
+      - Dose 4: Day 64 (+/- 3 days)
+      - Dose 5: Day 85 (+/- 3 days)
+      - Dose 6: Day 106 (+/- 3 days)
+      - Dose 7: Day 127 (+/- 3 days)
+      - Dose 8 (final): Day 168 (+/- 3 days)
+
+      Protocol deviations for dose timing:
+      - Early administration: actual_date < scheduled - 3 days
+      - Late administration: actual_date > scheduled + 3 days
+
+    parameters:
+      search_terms:
+        conditions:
+          - "dose delay"
+          - "dose omission"
+          - "early dose"
+          - "dose timing"
+
+      evaluation_criteria: |
+        Review visit records for dose administration dates.
+        Calculate actual days from randomization for each dose.
+        Flag if:
+        - Actual dose date > 3 days early (before window opens)
+        - Actual dose date > 3 days late (after window closes)
+        - A dose was omitted without documented reason
+        Note: doses held for AE management are NOT deviations if within protocol hold criteria.
+
+    tools_needed:
+      - "get_visits"
+      - "check_medical_history"
