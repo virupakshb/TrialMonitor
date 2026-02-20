@@ -1,0 +1,96 @@
+{
+  "job_id": "single-101-001-f567b2",
+  "run_type": "single",
+  "subject_id": "101-001",
+  "status": "done",
+  "total_subjects": 1,
+  "completed_subjects": 1,
+  "total_violations": 0,
+  "all_violations": [],
+  "results": [
+    {
+      "subject_id": "101-001",
+      "results": [
+        {
+          "rule_id": "EXCL-001",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-18T21:12:45.095984"
+        },
+        {
+          "rule_id": "EXCL-002",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "",
+          "confidence": "medium",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history"
+          ],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 7565,
+          "evaluated_at": "2026-02-18T21:12:52.661685"
+        },
+        {
+          "rule_id": "EXCL-008",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "QTcF: 392 msec > 470 msec (ECG date: 2024-07-24, Normal Sinus Rhythm) \u2192 PASS"
+          ],
+          "reasoning": "Laboratory check: QTcF: 392 msec > 470 msec (ECG date: 2024-07-24, Normal Sinus Rhythm) \u2192 PASS",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - SCREEN_FAILURE",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 6,
+          "evaluated_at": "2026-02-18T21:12:52.668329"
+        }
+      ],
+      "violations": [],
+      "violations_found": 0
+    }
+  ],
+  "usage": {
+    "total_input_tokens": 24372,
+    "total_output_tokens": 2141,
+    "total_api_calls": 12,
+    "llm_rule_evaluations": 6,
+    "input_cost_per_million": 3.0,
+    "output_cost_per_million": 15.0,
+    "total_tokens": 26513,
+    "estimated_cost_usd": 0.105231,
+    "estimated_cost_display": "$0.1052"
+  },
+  "started_at": 1771429372.6683297,
+  "finished_at": 1771429372.6683297,
+  "saved_at": "2026-02-18 21:12:52"
+}

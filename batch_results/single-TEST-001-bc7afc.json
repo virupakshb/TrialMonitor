@@ -1,0 +1,146 @@
+{
+  "job_id": "single-TEST-001-bc7afc",
+  "run_type": "single",
+  "subject_id": "TEST-001",
+  "status": "done",
+  "total_subjects": 1,
+  "completed_subjects": 1,
+  "total_violations": 1,
+  "all_violations": [
+    {
+      "subject_id": "TEST-001",
+      "rule_id": "EXCL-002",
+      "severity": "critical",
+      "action_required": "SCREEN_FAILURE",
+      "evidence": [
+        "Brain Metastases diagnosed 2024-07-15 (ongoing status)",
+        "MRI confirmed 2 parenchymal brain metastases, untreated, symptomatic with headaches",
+        "Current dexamethasone 8 mg BID since 2024-07-20 for brain edema from CNS metastases",
+        "Current levetiracetam 500 mg BID since 2024-07-20 for seizure prophylaxis for CNS metastases",
+        "Brain metastases are untreated (no radiation/surgery documented)",
+        "Patient is symptomatic (headaches) and requiring corticosteroids for symptom control"
+      ],
+      "reasoning": "Subject TEST-001 meets the exclusion criterion for 'Active or symptomatic central nervous system metastases' based on multiple criteria: (1) ACTIVE CNS metastases - diagnosed 2024-07-15, ongoing status, and explicitly documented as untreated; (2) SYMPTOMATIC - documented headaches and requiring both dexamethasone for brain edema and levetiracetam for seizure prophylaxis; (3) Current corticosteroid requirement - on dexamethasone 8 mg BID since 2024-07-20, which disqualifies under protocol (requires off corticosteroids \u22652 weeks for acceptable CNS metastases). The brain metastases do not meet the 'acceptable' criteria as they are untreated, symptomatic, and patient is currently on corticosteroids."
+    }
+  ],
+  "results": [
+    {
+      "subject_id": "TEST-001",
+      "results": [
+        {
+          "rule_id": "EXCL-001",
+          "subject_id": "TEST-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Medical history search for all specific PD-1/PD-L1/CTLA-4 agents (generic and brand names): No matches found",
+            "Medical history search for checkpoint inhibitor drug classes and immunotherapy terms: No matches found",
+            "Concomitant medications search for all checkpoint inhibitor agents and classes: No matches found",
+            "Current medications limited to dexamethasone and levetiracetam for brain metastases management",
+            "No documented history of checkpoint inhibitor therapy in available medical records"
+          ],
+          "reasoning": "I systematically searched the subject's medical history and concomitant medications for any evidence of prior PD-1/PD-L1 or CTLA-4 checkpoint inhibitor therapy. The searches included: (1) All specific drug names (generic and brand) for the 9 key checkpoint inhibitors, (2) Drug class terminology and immunotherapy-related terms, and (3) Current medication review. All searches returned negative results. The subject's current medications (dexamethasone and levetiracetam) are supportive care medications for brain metastases management and are not checkpoint inhibitors. Given the comprehensive nature of the search and the clear negative results across multiple search strategies, I have high confidence that this subject does not meet the exclusion criterion.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "check_medical_history",
+            "check_conmeds"
+          ],
+          "action_required": "PROCEED_WITH_SCREENING",
+          "recommendation": "Subject TEST-001 does NOT meet exclusion criterion EXCL-001. No evidence of prior checkpoint inhibitor therapy was found in medical history or concomitant medications. Subject may proceed with screening evaluations. Continue to verify treatment history during screening visit and document any additional prior therapies not captured in the initial medical history review.",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 22065,
+          "evaluated_at": "2026-02-18T21:21:08.698345"
+        },
+        {
+          "rule_id": "EXCL-002",
+          "subject_id": "TEST-001",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "Brain Metastases diagnosed 2024-07-15 (ongoing status)",
+            "MRI confirmed 2 parenchymal brain metastases, untreated, symptomatic with headaches",
+            "Current dexamethasone 8 mg BID since 2024-07-20 for brain edema from CNS metastases",
+            "Current levetiracetam 500 mg BID since 2024-07-20 for seizure prophylaxis for CNS metastases",
+            "Brain metastases are untreated (no radiation/surgery documented)",
+            "Patient is symptomatic (headaches) and requiring corticosteroids for symptom control"
+          ],
+          "reasoning": "Subject TEST-001 meets the exclusion criterion for 'Active or symptomatic central nervous system metastases' based on multiple criteria: (1) ACTIVE CNS metastases - diagnosed 2024-07-15, ongoing status, and explicitly documented as untreated; (2) SYMPTOMATIC - documented headaches and requiring both dexamethasone for brain edema and levetiracetam for seizure prophylaxis; (3) Current corticosteroid requirement - on dexamethasone 8 mg BID since 2024-07-20, which disqualifies under protocol (requires off corticosteroids \u22652 weeks for acceptable CNS metastases). The brain metastases do not meet the 'acceptable' criteria as they are untreated, symptomatic, and patient is currently on corticosteroids.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "check_conmeds"
+          ],
+          "action_required": "SCREEN_FAILURE",
+          "recommendation": "SCREEN FAILURE - Subject TEST-001 should be screen failed due to active and symptomatic CNS metastases. The patient has untreated brain metastases with ongoing symptoms requiring corticosteroid and anti-epileptic medication management. Consider referring patient for CNS-directed therapy (radiation/surgery) and potential re-screening after treatment completion and stabilization per protocol requirements (stable \u22654 weeks, asymptomatic, off corticosteroids \u22652 weeks).",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 16437,
+          "evaluated_at": "2026-02-18T21:21:25.135950"
+        },
+        {
+          "rule_id": "EXCL-008",
+          "subject_id": "TEST-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "QTcF: 435 msec > 470 msec (ECG date: 2024-09-01, Normal Sinus Rhythm) -> PASS"
+          ],
+          "reasoning": "Laboratory check: QTcF: 435 msec > 470 msec (ECG date: 2024-09-01, Normal Sinus Rhythm) -> PASS",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject excluded - SCREEN_FAILURE",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-18T21:21:25.135950"
+        }
+      ],
+      "violations": [
+        {
+          "subject_id": "TEST-001",
+          "rule_id": "EXCL-002",
+          "severity": "critical",
+          "action_required": "SCREEN_FAILURE",
+          "evidence": [
+            "Brain Metastases diagnosed 2024-07-15 (ongoing status)",
+            "MRI confirmed 2 parenchymal brain metastases, untreated, symptomatic with headaches",
+            "Current dexamethasone 8 mg BID since 2024-07-20 for brain edema from CNS metastases",
+            "Current levetiracetam 500 mg BID since 2024-07-20 for seizure prophylaxis for CNS metastases",
+            "Brain metastases are untreated (no radiation/surgery documented)",
+            "Patient is symptomatic (headaches) and requiring corticosteroids for symptom control"
+          ],
+          "reasoning": "Subject TEST-001 meets the exclusion criterion for 'Active or symptomatic central nervous system metastases' based on multiple criteria: (1) ACTIVE CNS metastases - diagnosed 2024-07-15, ongoing status, and explicitly documented as untreated; (2) SYMPTOMATIC - documented headaches and requiring both dexamethasone for brain edema and levetiracetam for seizure prophylaxis; (3) Current corticosteroid requirement - on dexamethasone 8 mg BID since 2024-07-20, which disqualifies under protocol (requires off corticosteroids \u22652 weeks for acceptable CNS metastases). The brain metastases do not meet the 'acceptable' criteria as they are untreated, symptomatic, and patient is currently on corticosteroids."
+        }
+      ],
+      "violations_found": 1
+    }
+  ],
+  "usage": {
+    "total_input_tokens": 63483,
+    "total_output_tokens": 6408,
+    "total_api_calls": 25,
+    "llm_rule_evaluations": 6,
+    "input_cost_per_million": 3.0,
+    "output_cost_per_million": 15.0,
+    "total_tokens": 69891,
+    "estimated_cost_usd": 0.286569,
+    "estimated_cost_display": "$0.2866"
+  },
+  "started_at": 1771429885.1359506,
+  "finished_at": 1771429885.1359506,
+  "saved_at": "2026-02-18 21:21:25"
+}

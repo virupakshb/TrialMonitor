@@ -1,0 +1,107 @@
+{
+  "job_id": "single-101-001-6cb094",
+  "run_type": "single",
+  "subject_id": "101-001",
+  "status": "done",
+  "total_subjects": 1,
+  "completed_subjects": 1,
+  "total_violations": 0,
+  "all_violations": [],
+  "results": [
+    {
+      "subject_id": "101-001",
+      "results": [
+        {
+          "rule_id": "EXCL-001",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-18T21:16:36.838787"
+        },
+        {
+          "rule_id": "EXCL-002",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "No history of CNS metastases, brain metastases, leptomeningeal disease, or spinal cord metastases found in medical history",
+            "No CNS-related medications found (no corticosteroids for CNS symptoms, no anti-epileptics)",
+            "Dexamethasone 4mg daily noted in summary but not detected by conmeds tool - indication listed as 'Inflammation', not CNS symptoms",
+            "Tumor assessments show progression with new lesions but no specific mention of CNS involvement",
+            "Progressive disease noted on 2024-12-10 with new lesions, but location not specified as CNS"
+          ],
+          "reasoning": "Step-by-step evaluation: 1) Medical history search revealed no documented CNS metastases or related conditions. 2) Concomitant medication search found no corticosteroids or anti-epileptics that would suggest CNS metastases treatment. 3) While dexamethasone was mentioned in the summary, it was not captured by the conmeds tool and the indication was listed as 'Inflammation' rather than CNS symptoms. 4) Tumor assessments show disease progression with new lesions, but there's no specification that these are CNS lesions. 5) The absence of neurological symptoms, CNS-specific treatments, or documented CNS metastases indicates the subject does not meet the exclusion criterion.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "check_conmeds",
+            "get_tumor_assessments"
+          ],
+          "action_required": "NONE",
+          "recommendation": "Subject does not meet EXCL-002 exclusion criterion based on available evidence. However, given this is post-randomization phase and there's recent disease progression with new lesions (Dec 2024), recommend: 1) Clarify anatomical location of new lesions to rule out CNS involvement, 2) Verify dexamethasone indication and dosing rationale, 3) Continue routine neurological monitoring given advanced NSCLC status.",
+          "missing_data": [
+            "Specific anatomical location of new lesions from recent tumor assessment",
+            "Complete medication reconciliation for dexamethasone"
+          ],
+          "requires_review": true,
+          "execution_time_ms": 23242,
+          "evaluated_at": "2026-02-18T21:17:00.081449"
+        },
+        {
+          "rule_id": "EXCL-008",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "QTcF: 392 msec > 470 msec (ECG date: 2024-07-24, Normal Sinus Rhythm) -> PASS"
+          ],
+          "reasoning": "Laboratory check: QTcF: 392 msec > 470 msec (ECG date: 2024-07-24, Normal Sinus Rhythm) -> PASS",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - SAFETY_SIGNAL_AESI",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-18T21:17:00.082193"
+        }
+      ],
+      "violations": [],
+      "violations_found": 0
+    }
+  ],
+  "usage": {
+    "total_input_tokens": 10205,
+    "total_output_tokens": 1006,
+    "total_api_calls": 4,
+    "llm_rule_evaluations": 1,
+    "input_cost_per_million": 3.0,
+    "output_cost_per_million": 15.0,
+    "total_tokens": 11211,
+    "estimated_cost_usd": 0.045705,
+    "estimated_cost_display": "$0.0457"
+  },
+  "started_at": 1771429620.0821934,
+  "finished_at": 1771429620.0821934,
+  "saved_at": "2026-02-18 21:17:00"
+}

@@ -30,13 +30,9 @@ frontend/node_modules/
 # Vite build output — Railway will build this
 frontend/dist/
 
-# Batch results (runtime data)
-batch_results/
-
 # Claude internal
 .claude/
 
 # Misc
 nul
 *.tmp
-eval_result.json

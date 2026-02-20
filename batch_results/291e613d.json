@@ -1,0 +1,1304 @@
+{
+  "job_id": "291e613d",
+  "status": "done",
+  "results": [
+    {
+      "subject_id": "101-901",
+      "results": [
+        {
+          "rule_id": "AE-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+            "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+            "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)"
+          ],
+          "reasoning": "AE check (sae_flag): 3 matching event(s) found",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "get_adverse_events"
+          ],
+          "action_required": "SAE_REPORT_REQUIRED",
+          "recommendation": "Safety signal: review AEs immediately",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 1,
+          "evaluated_at": "2026-02-19T13:05:38.510310"
+        },
+        {
+          "rule_id": "AE-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+            "Anaemia - Grade 3 (Severe, SAE=No, onset=2024-11-07)",
+            "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+            "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)",
+            "Neutropenia - Grade 3 (Severe, SAE=No, onset=2024-09-26)"
+          ],
+          "reasoning": "AE check (ae_grade): 5 matching event(s) found",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "get_adverse_events"
+          ],
+          "action_required": "DOSE_MODIFICATION_REQUIRED",
+          "recommendation": "Safety signal: review AEs immediately",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 1,
+          "evaluated_at": "2026-02-19T13:05:38.511322"
+        },
+        {
+          "rule_id": "AE-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "Immune-related myocarditis (AE ID 297) - Grade 4, life-threatening, onset 2024-11-05, ongoing, related to study drug, led to permanent drug discontinuation",
+            "Immune-related pneumonitis (AE ID 296) - Grade 3, severe, onset 2024-10-28, ongoing, related to study drug, required hospitalization",
+            "Immune-related thyroiditis (AE ID 295) - Grade 1, mild, onset 2024-10-17, ongoing, related to study drug",
+            "Cardiac arrest with ventricular tachycardia (AE ID 298) - Grade 4, life-threatening, described as 'sequela of immune myocarditis'",
+            "Subject currently on prednisone 60mg daily for immune-related pneumonitis management",
+            "All three immune-related AEs developed after treatment initiation (post-baseline)",
+            "Pre-existing subclinical hypothyroidism from 2019, distinct from new-onset immune-related thyroiditis"
+          ],
+          "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-003 for 'Detection of immune-related AEs of special interest associated with checkpoint inhibitor therapy'. The subject developed THREE distinct irAESI conditions after starting NovaPlex-450: (1) Immune-related myocarditis (Grade 4, life-threatening), (2) Immune-related pneumonitis (Grade 3, severe), and (3) Immune-related thyroiditis (Grade 1). All are explicitly documented as related to the study drug. The myocarditis was so severe it progressed to cardiac arrest requiring resuscitation and led to permanent drug discontinuation. The pneumonitis required hospitalization and high-dose steroid therapy. These represent classic irAESI patterns for checkpoint inhibitors affecting cardiac, pulmonary, and endocrine systems. The pre-existing subclinical hypothyroidism is distinct from the new immune-related thyroiditis that developed during treatment.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_adverse_events",
+            "get_labs",
+            "check_medical_history",
+            "check_medical_history"
+          ],
+          "action_required": "AESI_REPORT_REQUIRED",
+          "recommendation": "PROTOCOL DEVIATION - IMMEDIATE ACTION REQUIRED: This represents multiple life-threatening immune-related AEs of special interest. The subject has already been appropriately discontinued from study drug due to Grade 4 immune-related myocarditis. Continue aggressive immunosuppressive therapy per protocol. Ensure all irAESI have been reported to sponsor medical monitor within 24 hours as required. Consider cardio-oncology consultation for ongoing myocarditis management. This case demonstrates the serious safety profile of checkpoint inhibitor combinations and reinforces the importance of this exclusion criterion for future screening.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 166668,
+          "evaluated_at": "2026-02-19T13:08:25.180022"
+        },
+        {
+          "rule_id": "AE-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "major",
+          "evidence": [
+            "SAE #296 (Immune-related pneumonitis): Onset date 2024-10-28, SAE form submitted Nov 8 - explicitly documented as 11-day delay from onset",
+            "SAE reporting deviation explicitly noted in AE description: 'SAE form submitted Nov 8 (11-day delay from onset - reporting deviation)'",
+            "Protocol requires SAE reporting within 24 hours of awareness per ICH E6 guidelines",
+            "Subject had multiple Grade 3-4 life-threatening SAEs related to study drug during post-randomization phase"
+          ],
+          "reasoning": "The exclusion criterion AE-004 requires serious adverse events to be reported to sponsor within 24 hours of awareness. Subject 101-901 had an SAE (immune-related pneumonitis) that was reported 11 days after onset, representing a clear violation of the 24-hour reporting requirement. This constitutes a protocol deviation as explicitly documented in the AE description. The 11-day delay significantly exceeds the acceptable 24-hour timeframe, making this a definitive breach of the reporting requirement.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_adverse_events"
+          ],
+          "action_required": "REPORTING_DEVIATION",
+          "recommendation": "PROTOCOL DEVIATION - Document this as a major protocol deviation requiring CAPA (Corrective and Preventive Action). Investigate root cause of the 11-day reporting delay for the pneumonitis SAE. Review site SAE reporting procedures and provide additional training if needed. Ensure all future SAEs are reported within 24 hours. The late reporting must be documented in the study files with justification and corrective measures implemented.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 23586,
+          "evaluated_at": "2026-02-19T13:08:48.766379"
+        },
+        {
+          "rule_id": "AE-005",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "Immune-related myocarditis (AE ID 297): Grade 4, life-threatening, onset 2024-11-05, relationship_to_study_drug='Related', action_taken='Drug Discontinued', outcome='Recovering'",
+            "Cardiac arrest - ventricular tachycardia (AE ID 298): Grade 4, life-threatening, onset 2024-12-10, relationship_to_study_drug='Related', action_taken='Drug Discontinued'",
+            "NovaPlex-450 permanently discontinued due to immune-related myocarditis with definite relationship to study drug",
+            "Multiple Grade 4 AEs (myocarditis and cardiac arrest) both related to study drug",
+            "Drug discontinuation documented in AE descriptions: 'NovaPlex-450 permanently discontinued' and 'Drug already discontinued prior to this event'"
+          ],
+          "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-005. The subject developed immune-related myocarditis (Grade 4, life-threatening) with a 'Related' relationship to NovaPlex-450, which resulted in permanent drug discontinuation. This was followed by cardiac arrest with ventricular tachycardia (also Grade 4, life-threatening, 'Related' to study drug). Both events meet the evaluation criteria: (1) relationship_to_study_drug = 'Related' (equivalent to 'Probable/Definite'), (2) action_taken = 'Drug Discontinued' (indicating permanent discontinuation), and (3) ctcae_grade >= 4 for both events. The AE descriptions explicitly state 'NovaPlex-450 permanently discontinued' confirming treatment discontinuation due to study drug-related adverse events.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_adverse_events"
+          ],
+          "action_required": "DISCONTINUATION_REVIEW",
+          "recommendation": "PROTOCOL DEVIATION - Subject 101-901 is EXCLUDED from the study per criterion AE-005. This represents a significant safety signal requiring immediate reporting to regulatory authorities and Data Safety Monitoring Board (DSMB). The immune-related myocarditis leading to cardiac arrest is a serious safety concern for the NovaPlex-450 compound. Ensure all safety follow-up is completed per protocol requirements, including 30-day post-discontinuation safety assessment. Medical monitor and sponsor review has likely already occurred given the severity. Consider protocol amendment if this represents a pattern across subjects.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 27963,
+          "evaluated_at": "2026-02-19T13:09:16.730328"
+        },
+        {
+          "rule_id": "DEV-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "major",
+          "evidence": [
+            "Week 9 (Cycle 3) (#5): scheduled 2024-10-07, actual 2024-10-17 (late by 10 days, window is +/-3 days) -> OUTSIDE WINDOW",
+            "Week 15 (Cycle 5) (#7): scheduled 2024-11-28, actual 2024-12-05 (late by 7 days, window is +/-3 days) -> OUTSIDE WINDOW"
+          ],
+          "reasoning": "Visit window check: 2 visit(s) outside protocol window",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_visit_windows"
+          ],
+          "action_required": "PROTOCOL_DEVIATION_LOG",
+          "recommendation": "Protocol deviation: 2 visit(s) outside window",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:09:16.730328"
+        },
+        {
+          "rule_id": "DEV-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "LLM evaluation error: Error code: 429 - {'type': 'error', 'error': {'type': 'rate_limit_error', 'message': \"This request would exceed your organization's rate limit of 30,000 input tokens per minute (org: 0cc7a9ff-ed32-4a65-8ae2-b4f6bd7bfeb8, model: claude-sonnet-4-20250514). For details, refer to: https://docs.claude.com/en/api/rate-limits. You can see the response headers for current usage. Please reduce the prompt length or the maximum tokens requested, or try again later. You may also contact sales at https://www.anthropic.com/contact-sales to discuss your options for a rate limit increase.\"}, 'request_id': 'req_011CYH3mBeZBbvoGo4XvQ3wX'}",
+          "confidence": "low",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 38016,
+          "evaluated_at": "2026-02-19T13:09:54.746945"
+        },
+        {
+          "rule_id": "DEV-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "minor",
+          "evidence": [
+            "Week 9 visit (Oct 17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis",
+            "Week 6 visit (Sept 26): Mild diarrhoea noted in visit notes but NOT captured on AE form at this visit (data capture gap)",
+            "Week 9 visit (Oct 17): Troponin I 0.08 ng/mL elevated (2x ULN) but site noted as demand ischaemia and NOT reported as AE - missed assessment deviation",
+            "Week 18 visit (Jan 9): QoL questionnaire not completed again at this visit",
+            "Week 24 visit (Feb 17): End of treatment visit missed entirely - patient too unwell to attend",
+            "Follow-up visit: Not attended - subject deceased"
+          ],
+          "reasoning": "Multiple protocol-required assessments were missed at various visits: 1) QoL questionnaires missed at Week 9 and 18 tumor assessment visits (required per protocol), 2) AE assessment incomplete at Week 6 (diarrhoea documented but not captured on AE form), 3) Abnormal troponin at Week 9 not reported as AE despite meeting criteria for medical significance, 4) Complete visit missed at Week 24. While some missing assessments were due to patient condition (breathlessness, death), protocol deviations still occurred as required assessments were not completed per schedule.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_visits",
+            "get_labs",
+            "get_ecg_results",
+            "get_adverse_events",
+            "get_tumor_assessments"
+          ],
+          "action_required": "PROTOCOL_DEVIATION_LOG",
+          "recommendation": "PROTOCOL DEVIATION - Multiple protocol deviations identified: DEV-003 confirmed for missed required assessments. QoL questionnaires missed at tumor assessment visits (Weeks 9, 18), incomplete AE capture at Week 6, missed AE reporting for elevated troponin at Week 9, and missed end-of-treatment visit. Document all deviations, assess impact on data integrity, and implement corrective actions for future similar cases. Consider if missed assessments affect primary endpoint analysis.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 234749,
+          "evaluated_at": "2026-02-19T13:13:49.496619"
+        },
+        {
+          "rule_id": "DEV-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Dose 1 administered on Day 0 (Baseline visit 2024-08-15)",
+            "Dose 2 administered on Day 21, within window (scheduled Day 22 +/- 3 days)",
+            "Dose 3 appropriately held on Day 42 due to Grade 3 neutropenia (ANC 0.82)",
+            "Dose 4 administered on Day 63, within protocol window (Day 64 +/- 3 days = Days 61-67)",
+            "Visit 5 was 10 days late but dose administration was within protocol window",
+            "Drug permanently discontinued after Dose 4 due to Grade 3 immune pneumonitis and myocarditis (appropriate safety measure)"
+          ],
+          "reasoning": "Subject 101-901 did not violate the Q3W +/- 3 days dosing schedule. While Visit 5 was delayed by 10 days due to neutropenia recovery, the actual Dose 4 administration occurred on Day 63, which falls within the protocol-defined window of Days 61-67 (Day 64 +/- 3 days). Dose 3 was appropriately held for Grade 3 neutropenia per protocol safety requirements. The permanent discontinuation after Dose 4 was medically justified due to serious immune-related adverse events. No doses were administered outside the protocol-defined windows.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_visits"
+          ],
+          "action_required": "NONE",
+          "recommendation": "No protocol deviation for dosing schedule. The delayed visit was medically justified and did not result in out-of-window dose administration. Drug discontinuation was appropriate per protocol safety requirements.",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 74056,
+          "evaluated_at": "2026-02-19T13:15:03.552898"
+        },
+        {
+          "rule_id": "EP-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "info",
+          "evidence": [
+            "Tumor assessment on 2025-01-09 shows overall_response = 'Progressive Disease'",
+            "New hepatic lesion detected on 2025-01-09 (new_lesions = 1)",
+            "Progression flag = 1 on 2025-01-09 assessment",
+            "Assessment notes confirm 'New hepatic lesion (segment VI, 1.2cm) detected. Primary disease stable but new lesion = PD per RECIST 1.1'",
+            "PFS event date explicitly documented as 2025-01-09 in assessment notes",
+            "Study phase is post_randomization, indicating subject was already enrolled and treated"
+          ],
+          "reasoning": "Subject 101-901 definitively meets the exclusion criterion EP-001 for detection of disease progression per RECIST 1.1. The tumor assessment on 2025-01-09 clearly documents Progressive Disease with a new hepatic lesion, meeting RECIST 1.1 criteria for progression (appearance of one or more new lesions). This represents the primary endpoint event (PFS) occurring during the post-randomization phase. The subject had initially shown Partial Response on 2024-10-17 but progressed by 2025-01-09, establishing a clear PFS event date.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_tumor_assessments",
+            "get_adverse_events"
+          ],
+          "action_required": "PFS_EVENT_DETECTED",
+          "recommendation": "PROTOCOL DEVIATION - This is a legitimate PFS event occurring post-randomization, representing the primary endpoint event for this subject. The progression should be captured as the endpoint event with PFS date = 2025-01-09. The subject was appropriately discontinued from study treatment due to disease progression. Document this as the primary endpoint event and ensure proper endpoint database entry. The unconfirmed PR from October 2024 should also be reviewed for BOR (Best Overall Response) determination as noted in the assessment comments.",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 41646,
+          "evaluated_at": "2026-02-19T13:15:45.199183"
+        },
+        {
+          "rule_id": "EP-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Baseline assessment (2024-07-22): Target lesion sum 62mm, classified as 'Not Applicable' (baseline)",
+            "Week 9 assessment (2024-10-17): Partial Response - Target lesion sum 38mm (-39% from baseline), meeting RECIST 1.1 PR criteria (>=30% decrease)",
+            "Week 18 assessment (2025-01-09): Progressive Disease - New hepatic lesion detected (segment VI, 1.2cm), classified as PD per RECIST 1.1",
+            "Critical finding: PR response at Week 9 was NEVER CONFIRMED at subsequent assessment due to clinical deterioration from immune pneumonitis",
+            "Best Overall Response = Partial Response (PR) achieved on 2024-10-17, despite lack of confirmation"
+          ],
+          "reasoning": "Based on tumor assessment data, Subject 101-901 achieved a Partial Response (PR) as the best overall response. The exclusion criterion EP-002 asks to 'determine the best overall tumor response' but does not specify exclusion based on any particular response category. The subject achieved PR (-39% reduction in target lesions from 62mm to 38mm), which meets RECIST 1.1 criteria for partial response (>=30% decrease). While this PR was never confirmed due to clinical deterioration and subsequent progression, the BOR is still PR. Since no specific response category is listed as exclusionary in the criterion description, the subject does not meet this exclusion criterion based on tumor response alone.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_tumor_assessments"
+          ],
+          "action_required": "SAFETY_SIGNAL",
+          "recommendation": "The subject's BOR is Partial Response (PR). However, this case requires careful review due to: 1) Unconfirmed PR response (confirmation deferred due to immune pneumonitis), 2) Development of immune-related pneumonitis during treatment (safety signal), 3) Subsequent disease progression with new hepatic lesion. Document BOR as PR for ORR analysis but flag the unconfirmed nature of the response in the clinical database.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 31497,
+          "evaluated_at": "2026-02-19T13:16:16.696812"
+        },
+        {
+          "rule_id": "EP-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "No CTCAE Grade 5 (death) adverse events found",
+            "Cardiac arrest on 2024-12-10 was successfully resuscitated (outcome: Resolved, CTCAE Grade 4)",
+            "Multiple severe AEs including immune-related myocarditis (Grade 4, ongoing), but all non-fatal",
+            "Medical history search for death-related terms returned no matches",
+            "Subject study status is 'Discontinued' but no death indicated",
+            "Most recent AE data from 2026-02-19 shows ongoing recovery from myocarditis"
+          ],
+          "reasoning": "The exclusion criterion EP-003 requires 'Detection of death from any cause' as an Overall Survival endpoint event. While Subject 101-901 experienced severe, life-threatening adverse events including immune-related myocarditis that progressed to cardiac arrest with ventricular tachycardia on 2024-12-10, the patient was successfully resuscitated. The cardiac arrest AE is documented as Grade 4 (life-threatening) with outcome 'Resolved', not Grade 5 (death). No fatal AEs (Grade 5) were found, no death-related entries in medical history, and the subject's status indicates discontinuation but not death. The subject appears to be alive as of the latest data entry (2026-02-19) with ongoing recovery from myocarditis.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_adverse_events",
+            "check_medical_history"
+          ],
+          "action_required": "SAFETY_SIGNAL",
+          "recommendation": "Subject 101-901 does not meet exclusion criterion EP-003 (death/OS event) and remains eligible for continued follow-up. However, given the severe cardiac complications (immune-related myocarditis progressing to cardiac arrest), close monitoring is essential. The life-threatening AEs represent significant safety signals requiring careful management and reporting. Consider cardio-oncology consultation for ongoing care.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 47678,
+          "evaluated_at": "2026-02-19T13:17:04.374936"
+        },
+        {
+          "rule_id": "EP-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Subject achieved first objective response (Partial Response) on 2024-10-17 with 39% reduction in target lesions (62mm to 38mm)",
+            "Subject experienced Progressive Disease on 2025-01-09 due to new hepatic lesion",
+            "DoR calculated as 84 days (from PR date 2024-10-17 to PD date 2025-01-09)",
+            "DoR endpoint data is complete with clear event (progression) documented",
+            "Subject died on 2025-04-14, but PD event occurred first on 2025-01-09",
+            "Assessment notes specifically mention: 'DoR = first PR Oct 17 to PD Jan 9 = 84 days'"
+          ],
+          "reasoning": "This exclusion criterion appears to be mislabeled - it describes tracking Duration of Response (DoR) which is an efficacy endpoint, not an exclusion criterion. However, evaluating it as intended: Subject 101-901 is an objective responder who achieved PR on 2024-10-17 and subsequently progressed on 2025-01-09. The DoR data is complete (84 days) with a clear PD event. The subject meets all requirements for DoR analysis: 1) Achieved objective response (PR), 2) Had subsequent progression event, 3) Complete timeline documented. Since this is post-randomization phase and the subject has completed the DoR endpoint with an event, there is no basis for exclusion. The PR response was unconfirmed due to clinical deterioration from immune-related pneumonitis, but RECIST guidelines allow unconfirmed PR for DoR calculations in this context.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_tumor_assessments",
+            "get_visits",
+            "check_medical_history"
+          ],
+          "action_required": "SAFETY_SIGNAL",
+          "recommendation": "No exclusion warranted. Subject 101-901 has complete DoR endpoint data (84 days from PR to PD). The immune-related adverse events (pneumonitis, myocarditis) that led to treatment discontinuation represent important safety signals that should be reported and analyzed separately. DoR analysis should proceed as planned with this subject's data included. Note: The criterion description suggests this may be mislabeled as an exclusion when it should be an efficacy endpoint definition.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 70796,
+          "evaluated_at": "2026-02-19T13:18:15.171071"
+        },
+        {
+          "rule_id": "EP-005",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "minor",
+          "evidence": [
+            "Week 9 visit (2024-10-17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis Grade 2",
+            "Week 18 visit (2025-01-09): QoL questionnaire not completed again at this visit during survival follow-up",
+            "Week 24 (End of Treatment) visit (2025-02-17): Visit missed entirely - patient too unwell to attend, death reported by family",
+            "Follow-up visit: Not attended - subject deceased 2025-04-14",
+            "Baseline visit (2024-08-15): No specific mention of QoL completion in visit notes, though 'All baseline assessments completed' was documented"
+          ],
+          "reasoning": "The exclusion criterion EP-005 requires EORTC QLQ-C30 questionnaire completion at required study timepoints (Baseline, Week 9, Week 18, Week 24 End of Treatment, Follow-up). The visit records clearly document that the QoL questionnaire was NOT completed at Week 9 and Week 18 visits. The Week 24 EOT visit was missed entirely, and the Follow-up visit could not occur due to subject's death. While the baseline visit notes indicate 'All baseline assessments completed,' there's no specific documentation of QoL questionnaire completion. Given this is a post-randomization phase evaluation, the missed QoL assessments represent protocol deviations rather than screening failures. However, the criterion specifically states questionnaire completion is required at these timepoints, and the documented failures to complete at multiple required visits mean the subject meets this exclusion criterion.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "get_visits"
+          ],
+          "action_required": "DATA_QUALITY_ISSUE",
+          "recommendation": "PROTOCOL DEVIATION - This subject meets exclusion criterion EP-005 due to failure to complete EORTC QLQ-C30 questionnaires at required timepoints (Week 9, Week 18, and missed EOT/Follow-up visits). Since this occurred post-randomization, classify as protocol deviation (minor) with incomplete secondary endpoint data. Document the medical reasons for non-completion (immune pneumonitis causing breathlessness at Week 9, declining performance status, and eventual death). The partial QoL data collected should be analyzed separately in the per-protocol population exclusion for QoL endpoints.",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 20165,
+          "evaluated_at": "2026-02-19T13:18:35.336400"
+        },
+        {
+          "rule_id": "EXCL-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:18:35.337398"
+        },
+        {
+          "rule_id": "EXCL-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Medical history search found no evidence of CNS metastases, brain metastases, leptomeningeal disease, or spinal cord metastases",
+            "No neurological symptoms (headache, seizures, focal deficits) documented in medical history",
+            "Medication review shows no CNS-specific corticosteroids or anti-epileptic drugs for neurological indications",
+            "Prednisone 60mg QD identified but prescribed for immune-related pneumonitis management, not CNS metastases",
+            "Tumor assessments from 2024-07-22 through 2025-01-09 show no CNS lesions - progression noted as new hepatic lesion only",
+            "Adverse events review shows no CNS-related symptoms or neurological complications",
+            "Visit notes contain no documentation of CNS symptoms or neurological deficits",
+            "Subject has Stage IV NSCLC but no evidence of CNS involvement throughout study participation"
+          ],
+          "reasoning": "Systematic evaluation using all available tools found no evidence that Subject 101-901 has active or symptomatic CNS metastases. The medical history search specifically looked for CNS metastases, brain metastases, leptomeningeal disease, and spinal cord metastases but found no matches. The medication review confirmed the subject is on prednisone, but this is clearly documented as treatment for immune-related pneumonitis, not for CNS symptoms. No anti-epileptic medications or CNS-specific corticosteroids were identified. Tumor assessments spanning the study period show disease progression as a new hepatic lesion only, with no CNS involvement documented. The adverse events profile includes multiple immune-related adverse events (pneumonitis, myocarditis, thyroiditis) but no neurological or CNS-related events. This is a post-randomization evaluation, and there is no evidence of CNS metastases either at baseline or as a new development during the study.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "check_conmeds",
+            "get_tumor_assessments",
+            "get_adverse_events",
+            "get_visits"
+          ],
+          "action_required": "None - subject does not meet exclusion criterion",
+          "recommendation": "Subject 101-901 does NOT meet the exclusion criterion for active or symptomatic CNS metastases. No action required regarding this specific exclusion criterion. The subject was appropriately eligible for enrollment and continued participation with respect to CNS metastases status. Subject's discontinuation was due to immune-related adverse events (pneumonitis, myocarditis) and disease progression (new hepatic lesion), not CNS-related issues.",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 80532,
+          "evaluated_at": "2026-02-19T13:19:55.869732"
+        },
+        {
+          "rule_id": "EXCL-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:19:55.869732"
+        },
+        {
+          "rule_id": "EXCL-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:19:55.869732"
+        },
+        {
+          "rule_id": "EXCL-005",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "No ongoing active infections found in medical history search",
+            "No systemic antimicrobials for active infection identified in concomitant medications",
+            "Entecavir 0.5 mg QD identified as chronic HBV suppression therapy (NOT exclusionary per protocol)",
+            "Prior UTI diagnosed 2024-07-10, resolved 2024-08-10 with ciprofloxacin course completed before baseline",
+            "Current medications include immunosuppressive therapy (prednisone) but no antimicrobials for active infection"
+          ],
+          "reasoning": "The subject does not meet the exclusion criterion. While the subject has a history of UTI that was treated with ciprofloxacin in July-August 2024, this infection was resolved by August 10, 2024, before the study baseline. The subject is currently on entecavir for chronic hepatitis B suppression, which is specifically excluded from this criterion per protocol guidance (chronic stable viral suppression therapy is NOT exclusionary). No other systemic antimicrobials for active infection were identified. The subject is post-randomization, so this evaluation confirms no protocol deviation occurred at baseline.",
+          "confidence": "high",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "check_conmeds",
+            "check_conmeds",
+            "get_labs",
+            "check_medical_history"
+          ],
+          "action_required": "None - subject appropriately enrolled",
+          "recommendation": "Subject 101-901 does not meet exclusion criterion EXCL-005. The entecavir therapy for chronic HBV is maintenance therapy and not treatment for active infection. The prior UTI was appropriately resolved before study entry. Continue per protocol.",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 42531,
+          "evaluated_at": "2026-02-19T13:20:38.401119"
+        },
+        {
+          "rule_id": "EXCL-006",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:20:38.401119"
+        },
+        {
+          "rule_id": "EXCL-007",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Subject is a 61-year-old female with NSCLC Stage IV",
+            "No pregnancy-related conditions found in medical history search",
+            "No beta-hCG or pregnancy test results found in recent laboratory data (past 90 days)",
+            "No pregnancy-related medications (prenatal vitamins, folic acid) or contraceptives found in concomitant medications",
+            "Age 61 suggests likely post-menopausal status, though not explicitly documented"
+          ],
+          "reasoning": "This exclusion criterion applies to females who are currently pregnant or breastfeeding. Subject 101-901 is a 61-year-old female. My evaluation found: 1) No pregnancy or breastfeeding documented in medical history, 2) No pregnancy test results available in recent timeframe, 3) No pregnancy-related medications, 4) At age 61, the subject is likely post-menopausal. However, I cannot definitively confirm post-menopausal status (>12 months without menses) or surgical sterilization from available data. The absence of pregnancy-related findings combined with advanced age strongly suggests this exclusion criterion is not met, but confidence is medium due to lack of explicit documentation of menopausal/sterilization status or recent pregnancy testing.",
+          "confidence": "medium",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history",
+            "get_labs",
+            "check_conmeds"
+          ],
+          "action_required": "PROTOCOL_DEVIATION",
+          "recommendation": "Subject appears not to meet this exclusion criterion, but documentation gaps exist. Recommend: 1) Review source documents for menopausal status confirmation or surgical sterilization history, 2) Verify if pregnancy testing was performed at screening per protocol requirements, 3) If testing was missed at screening, this represents a protocol deviation that should be documented. Given the subject's age (61) and oncology treatment context, pregnancy risk is extremely low, but proper documentation should be completed retrospectively.",
+          "missing_data": [
+            "pregnancy test results",
+            "menopausal status documentation",
+            "surgical sterilization history",
+            "contraception use history"
+          ],
+          "requires_review": true,
+          "execution_time_ms": 29296,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "EXCL-008",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": false,
+          "violated": true,
+          "severity": "critical",
+          "evidence": [
+            "QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION"
+          ],
+          "reasoning": "Laboratory check: QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": "SAFETY_SIGNAL_AESI",
+          "recommendation": "Subject flagged - SAFETY_SIGNAL_AESI",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-005",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-006",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-007",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.697277"
+        },
+        {
+          "rule_id": "INCL-008",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.710417"
+        },
+        {
+          "rule_id": "INCL-009",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.710417"
+        },
+        {
+          "rule_id": "INCL-010A",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.711426"
+        },
+        {
+          "rule_id": "INCL-010B",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.711426"
+        },
+        {
+          "rule_id": "INCL-010C",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.711426"
+        },
+        {
+          "rule_id": "INCL-011",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.712426"
+        },
+        {
+          "rule_id": "INCL-012",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.713426"
+        },
+        {
+          "rule_id": "INCL-013",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.713426"
+        },
+        {
+          "rule_id": "LAB-001",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "ALT: 89.0 U/L > 135.0 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: ALT: 89.0 U/L > 135.0 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - HOLD_TREATMENT_AESI",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 1,
+          "evaluated_at": "2026-02-19T13:21:07.714450"
+        },
+        {
+          "rule_id": "LAB-001B",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "AST: 72.0 U/L > 135.0 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: AST: 72.0 U/L > 135.0 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - HOLD_TREATMENT_AESI",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.715149"
+        },
+        {
+          "rule_id": "LAB-002",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Creatinine: 1.35 mg/dL > 1.77 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: Creatinine: 1.35 mg/dL > 1.77 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - DOSE_MODIFICATION_REQUIRED",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.715149"
+        },
+        {
+          "rule_id": "LAB-003",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Neutrophils: 3.8 10^9/L < 1.0 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: Neutrophils: 3.8 10^9/L < 1.0 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - DOSE_MODIFICATION_REQUIRED",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.715149"
+        },
+        {
+          "rule_id": "LAB-004",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Platelets: 168.0 10^9/L < 75.0 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: Platelets: 168.0 10^9/L < 75.0 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - DOSE_MODIFICATION_REQUIRED",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.715149"
+        },
+        {
+          "rule_id": "LAB-005",
+          "subject_id": "101-901",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "Hemoglobin: 10.2 g/dL < 8.0 -> FAIL"
+          ],
+          "reasoning": "Laboratory check: Hemoglobin: 10.2 g/dL < 8.0 -> FAIL",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [
+            "check_lab_threshold"
+          ],
+          "action_required": null,
+          "recommendation": "Subject flagged - CLINICAL_REVIEW_REQUIRED",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-19T13:21:07.715149"
+        }
+      ],
+      "violations": [
+        {
+          "subject_id": "101-901",
+          "rule_id": "AE-001",
+          "severity": "critical",
+          "action_required": "SAE_REPORT_REQUIRED",
+          "evidence": [
+            "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+            "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+            "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)"
+          ],
+          "reasoning": "AE check (sae_flag): 3 matching event(s) found"
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "AE-002",
+          "severity": "critical",
+          "action_required": "DOSE_MODIFICATION_REQUIRED",
+          "evidence": [
+            "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+            "Anaemia - Grade 3 (Severe, SAE=No, onset=2024-11-07)",
+            "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+            "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)",
+            "Neutropenia - Grade 3 (Severe, SAE=No, onset=2024-09-26)"
+          ],
+          "reasoning": "AE check (ae_grade): 5 matching event(s) found"
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "AE-003",
+          "severity": "critical",
+          "action_required": "AESI_REPORT_REQUIRED",
+          "evidence": [
+            "Immune-related myocarditis (AE ID 297) - Grade 4, life-threatening, onset 2024-11-05, ongoing, related to study drug, led to permanent drug discontinuation",
+            "Immune-related pneumonitis (AE ID 296) - Grade 3, severe, onset 2024-10-28, ongoing, related to study drug, required hospitalization",
+            "Immune-related thyroiditis (AE ID 295) - Grade 1, mild, onset 2024-10-17, ongoing, related to study drug",
+            "Cardiac arrest with ventricular tachycardia (AE ID 298) - Grade 4, life-threatening, described as 'sequela of immune myocarditis'",
+            "Subject currently on prednisone 60mg daily for immune-related pneumonitis management",
+            "All three immune-related AEs developed after treatment initiation (post-baseline)",
+            "Pre-existing subclinical hypothyroidism from 2019, distinct from new-onset immune-related thyroiditis"
+          ],
+          "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-003 for 'Detection of immune-related AEs of special interest associated with checkpoint inhibitor therapy'. The subject developed THREE distinct irAESI conditions after starting NovaPlex-450: (1) Immune-related myocarditis (Grade 4, life-threatening), (2) Immune-related pneumonitis (Grade 3, severe), and (3) Immune-related thyroiditis (Grade 1). All are explicitly documented as related to the study drug. The myocarditis was so severe it progressed to cardiac arrest requiring resuscitation and led to permanent drug discontinuation. The pneumonitis required hospitalization and high-dose steroid therapy. These represent classic irAESI patterns for checkpoint inhibitors affecting cardiac, pulmonary, and endocrine systems. The pre-existing subclinical hypothyroidism is distinct from the new immune-related thyroiditis that developed during treatment."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "AE-004",
+          "severity": "major",
+          "action_required": "REPORTING_DEVIATION",
+          "evidence": [
+            "SAE #296 (Immune-related pneumonitis): Onset date 2024-10-28, SAE form submitted Nov 8 - explicitly documented as 11-day delay from onset",
+            "SAE reporting deviation explicitly noted in AE description: 'SAE form submitted Nov 8 (11-day delay from onset - reporting deviation)'",
+            "Protocol requires SAE reporting within 24 hours of awareness per ICH E6 guidelines",
+            "Subject had multiple Grade 3-4 life-threatening SAEs related to study drug during post-randomization phase"
+          ],
+          "reasoning": "The exclusion criterion AE-004 requires serious adverse events to be reported to sponsor within 24 hours of awareness. Subject 101-901 had an SAE (immune-related pneumonitis) that was reported 11 days after onset, representing a clear violation of the 24-hour reporting requirement. This constitutes a protocol deviation as explicitly documented in the AE description. The 11-day delay significantly exceeds the acceptable 24-hour timeframe, making this a definitive breach of the reporting requirement."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "AE-005",
+          "severity": "critical",
+          "action_required": "DISCONTINUATION_REVIEW",
+          "evidence": [
+            "Immune-related myocarditis (AE ID 297): Grade 4, life-threatening, onset 2024-11-05, relationship_to_study_drug='Related', action_taken='Drug Discontinued', outcome='Recovering'",
+            "Cardiac arrest - ventricular tachycardia (AE ID 298): Grade 4, life-threatening, onset 2024-12-10, relationship_to_study_drug='Related', action_taken='Drug Discontinued'",
+            "NovaPlex-450 permanently discontinued due to immune-related myocarditis with definite relationship to study drug",
+            "Multiple Grade 4 AEs (myocarditis and cardiac arrest) both related to study drug",
+            "Drug discontinuation documented in AE descriptions: 'NovaPlex-450 permanently discontinued' and 'Drug already discontinued prior to this event'"
+          ],
+          "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-005. The subject developed immune-related myocarditis (Grade 4, life-threatening) with a 'Related' relationship to NovaPlex-450, which resulted in permanent drug discontinuation. This was followed by cardiac arrest with ventricular tachycardia (also Grade 4, life-threatening, 'Related' to study drug). Both events meet the evaluation criteria: (1) relationship_to_study_drug = 'Related' (equivalent to 'Probable/Definite'), (2) action_taken = 'Drug Discontinued' (indicating permanent discontinuation), and (3) ctcae_grade >= 4 for both events. The AE descriptions explicitly state 'NovaPlex-450 permanently discontinued' confirming treatment discontinuation due to study drug-related adverse events."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "DEV-001",
+          "severity": "major",
+          "action_required": "PROTOCOL_DEVIATION_LOG",
+          "evidence": [
+            "Week 9 (Cycle 3) (#5): scheduled 2024-10-07, actual 2024-10-17 (late by 10 days, window is +/-3 days) -> OUTSIDE WINDOW",
+            "Week 15 (Cycle 5) (#7): scheduled 2024-11-28, actual 2024-12-05 (late by 7 days, window is +/-3 days) -> OUTSIDE WINDOW"
+          ],
+          "reasoning": "Visit window check: 2 visit(s) outside protocol window"
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "DEV-003",
+          "severity": "minor",
+          "action_required": "PROTOCOL_DEVIATION_LOG",
+          "evidence": [
+            "Week 9 visit (Oct 17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis",
+            "Week 6 visit (Sept 26): Mild diarrhoea noted in visit notes but NOT captured on AE form at this visit (data capture gap)",
+            "Week 9 visit (Oct 17): Troponin I 0.08 ng/mL elevated (2x ULN) but site noted as demand ischaemia and NOT reported as AE - missed assessment deviation",
+            "Week 18 visit (Jan 9): QoL questionnaire not completed again at this visit",
+            "Week 24 visit (Feb 17): End of treatment visit missed entirely - patient too unwell to attend",
+            "Follow-up visit: Not attended - subject deceased"
+          ],
+          "reasoning": "Multiple protocol-required assessments were missed at various visits: 1) QoL questionnaires missed at Week 9 and 18 tumor assessment visits (required per protocol), 2) AE assessment incomplete at Week 6 (diarrhoea documented but not captured on AE form), 3) Abnormal troponin at Week 9 not reported as AE despite meeting criteria for medical significance, 4) Complete visit missed at Week 24. While some missing assessments were due to patient condition (breathlessness, death), protocol deviations still occurred as required assessments were not completed per schedule."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "EP-001",
+          "severity": "info",
+          "action_required": "PFS_EVENT_DETECTED",
+          "evidence": [
+            "Tumor assessment on 2025-01-09 shows overall_response = 'Progressive Disease'",
+            "New hepatic lesion detected on 2025-01-09 (new_lesions = 1)",
+            "Progression flag = 1 on 2025-01-09 assessment",
+            "Assessment notes confirm 'New hepatic lesion (segment VI, 1.2cm) detected. Primary disease stable but new lesion = PD per RECIST 1.1'",
+            "PFS event date explicitly documented as 2025-01-09 in assessment notes",
+            "Study phase is post_randomization, indicating subject was already enrolled and treated"
+          ],
+          "reasoning": "Subject 101-901 definitively meets the exclusion criterion EP-001 for detection of disease progression per RECIST 1.1. The tumor assessment on 2025-01-09 clearly documents Progressive Disease with a new hepatic lesion, meeting RECIST 1.1 criteria for progression (appearance of one or more new lesions). This represents the primary endpoint event (PFS) occurring during the post-randomization phase. The subject had initially shown Partial Response on 2024-10-17 but progressed by 2025-01-09, establishing a clear PFS event date."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "EP-005",
+          "severity": "minor",
+          "action_required": "DATA_QUALITY_ISSUE",
+          "evidence": [
+            "Week 9 visit (2024-10-17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis Grade 2",
+            "Week 18 visit (2025-01-09): QoL questionnaire not completed again at this visit during survival follow-up",
+            "Week 24 (End of Treatment) visit (2025-02-17): Visit missed entirely - patient too unwell to attend, death reported by family",
+            "Follow-up visit: Not attended - subject deceased 2025-04-14",
+            "Baseline visit (2024-08-15): No specific mention of QoL completion in visit notes, though 'All baseline assessments completed' was documented"
+          ],
+          "reasoning": "The exclusion criterion EP-005 requires EORTC QLQ-C30 questionnaire completion at required study timepoints (Baseline, Week 9, Week 18, Week 24 End of Treatment, Follow-up). The visit records clearly document that the QoL questionnaire was NOT completed at Week 9 and Week 18 visits. The Week 24 EOT visit was missed entirely, and the Follow-up visit could not occur due to subject's death. While the baseline visit notes indicate 'All baseline assessments completed,' there's no specific documentation of QoL questionnaire completion. Given this is a post-randomization phase evaluation, the missed QoL assessments represent protocol deviations rather than screening failures. However, the criterion specifically states questionnaire completion is required at these timepoints, and the documented failures to complete at multiple required visits mean the subject meets this exclusion criterion."
+        },
+        {
+          "subject_id": "101-901",
+          "rule_id": "EXCL-008",
+          "severity": "critical",
+          "action_required": "SAFETY_SIGNAL_AESI",
+          "evidence": [
+            "QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION"
+          ],
+          "reasoning": "Laboratory check: QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION"
+        }
+      ],
+      "violations_found": 10
+    }
+  ],
+  "total_violations": 10,
+  "all_violations": [
+    {
+      "subject_id": "101-901",
+      "rule_id": "AE-001",
+      "severity": "critical",
+      "action_required": "SAE_REPORT_REQUIRED",
+      "evidence": [
+        "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+        "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+        "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)"
+      ],
+      "reasoning": "AE check (sae_flag): 3 matching event(s) found"
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "AE-002",
+      "severity": "critical",
+      "action_required": "DOSE_MODIFICATION_REQUIRED",
+      "evidence": [
+        "Cardiac arrest - ventricular tachycardia - Grade 4 (Life-threatening, SAE=Yes, onset=2024-12-10)",
+        "Anaemia - Grade 3 (Severe, SAE=No, onset=2024-11-07)",
+        "Immune-related myocarditis - Grade 4 (Life-threatening, SAE=Yes, onset=2024-11-05)",
+        "Immune-related pneumonitis - Grade 3 (Severe, SAE=Yes, onset=2024-10-28)",
+        "Neutropenia - Grade 3 (Severe, SAE=No, onset=2024-09-26)"
+      ],
+      "reasoning": "AE check (ae_grade): 5 matching event(s) found"
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "AE-003",
+      "severity": "critical",
+      "action_required": "AESI_REPORT_REQUIRED",
+      "evidence": [
+        "Immune-related myocarditis (AE ID 297) - Grade 4, life-threatening, onset 2024-11-05, ongoing, related to study drug, led to permanent drug discontinuation",
+        "Immune-related pneumonitis (AE ID 296) - Grade 3, severe, onset 2024-10-28, ongoing, related to study drug, required hospitalization",
+        "Immune-related thyroiditis (AE ID 295) - Grade 1, mild, onset 2024-10-17, ongoing, related to study drug",
+        "Cardiac arrest with ventricular tachycardia (AE ID 298) - Grade 4, life-threatening, described as 'sequela of immune myocarditis'",
+        "Subject currently on prednisone 60mg daily for immune-related pneumonitis management",
+        "All three immune-related AEs developed after treatment initiation (post-baseline)",
+        "Pre-existing subclinical hypothyroidism from 2019, distinct from new-onset immune-related thyroiditis"
+      ],
+      "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-003 for 'Detection of immune-related AEs of special interest associated with checkpoint inhibitor therapy'. The subject developed THREE distinct irAESI conditions after starting NovaPlex-450: (1) Immune-related myocarditis (Grade 4, life-threatening), (2) Immune-related pneumonitis (Grade 3, severe), and (3) Immune-related thyroiditis (Grade 1). All are explicitly documented as related to the study drug. The myocarditis was so severe it progressed to cardiac arrest requiring resuscitation and led to permanent drug discontinuation. The pneumonitis required hospitalization and high-dose steroid therapy. These represent classic irAESI patterns for checkpoint inhibitors affecting cardiac, pulmonary, and endocrine systems. The pre-existing subclinical hypothyroidism is distinct from the new immune-related thyroiditis that developed during treatment."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "AE-004",
+      "severity": "major",
+      "action_required": "REPORTING_DEVIATION",
+      "evidence": [
+        "SAE #296 (Immune-related pneumonitis): Onset date 2024-10-28, SAE form submitted Nov 8 - explicitly documented as 11-day delay from onset",
+        "SAE reporting deviation explicitly noted in AE description: 'SAE form submitted Nov 8 (11-day delay from onset - reporting deviation)'",
+        "Protocol requires SAE reporting within 24 hours of awareness per ICH E6 guidelines",
+        "Subject had multiple Grade 3-4 life-threatening SAEs related to study drug during post-randomization phase"
+      ],
+      "reasoning": "The exclusion criterion AE-004 requires serious adverse events to be reported to sponsor within 24 hours of awareness. Subject 101-901 had an SAE (immune-related pneumonitis) that was reported 11 days after onset, representing a clear violation of the 24-hour reporting requirement. This constitutes a protocol deviation as explicitly documented in the AE description. The 11-day delay significantly exceeds the acceptable 24-hour timeframe, making this a definitive breach of the reporting requirement."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "AE-005",
+      "severity": "critical",
+      "action_required": "DISCONTINUATION_REVIEW",
+      "evidence": [
+        "Immune-related myocarditis (AE ID 297): Grade 4, life-threatening, onset 2024-11-05, relationship_to_study_drug='Related', action_taken='Drug Discontinued', outcome='Recovering'",
+        "Cardiac arrest - ventricular tachycardia (AE ID 298): Grade 4, life-threatening, onset 2024-12-10, relationship_to_study_drug='Related', action_taken='Drug Discontinued'",
+        "NovaPlex-450 permanently discontinued due to immune-related myocarditis with definite relationship to study drug",
+        "Multiple Grade 4 AEs (myocarditis and cardiac arrest) both related to study drug",
+        "Drug discontinuation documented in AE descriptions: 'NovaPlex-450 permanently discontinued' and 'Drug already discontinued prior to this event'"
+      ],
+      "reasoning": "Subject 101-901 clearly meets the exclusion criterion AE-005. The subject developed immune-related myocarditis (Grade 4, life-threatening) with a 'Related' relationship to NovaPlex-450, which resulted in permanent drug discontinuation. This was followed by cardiac arrest with ventricular tachycardia (also Grade 4, life-threatening, 'Related' to study drug). Both events meet the evaluation criteria: (1) relationship_to_study_drug = 'Related' (equivalent to 'Probable/Definite'), (2) action_taken = 'Drug Discontinued' (indicating permanent discontinuation), and (3) ctcae_grade >= 4 for both events. The AE descriptions explicitly state 'NovaPlex-450 permanently discontinued' confirming treatment discontinuation due to study drug-related adverse events."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "DEV-001",
+      "severity": "major",
+      "action_required": "PROTOCOL_DEVIATION_LOG",
+      "evidence": [
+        "Week 9 (Cycle 3) (#5): scheduled 2024-10-07, actual 2024-10-17 (late by 10 days, window is +/-3 days) -> OUTSIDE WINDOW",
+        "Week 15 (Cycle 5) (#7): scheduled 2024-11-28, actual 2024-12-05 (late by 7 days, window is +/-3 days) -> OUTSIDE WINDOW"
+      ],
+      "reasoning": "Visit window check: 2 visit(s) outside protocol window"
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "DEV-003",
+      "severity": "minor",
+      "action_required": "PROTOCOL_DEVIATION_LOG",
+      "evidence": [
+        "Week 9 visit (Oct 17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis",
+        "Week 6 visit (Sept 26): Mild diarrhoea noted in visit notes but NOT captured on AE form at this visit (data capture gap)",
+        "Week 9 visit (Oct 17): Troponin I 0.08 ng/mL elevated (2x ULN) but site noted as demand ischaemia and NOT reported as AE - missed assessment deviation",
+        "Week 18 visit (Jan 9): QoL questionnaire not completed again at this visit",
+        "Week 24 visit (Feb 17): End of treatment visit missed entirely - patient too unwell to attend",
+        "Follow-up visit: Not attended - subject deceased"
+      ],
+      "reasoning": "Multiple protocol-required assessments were missed at various visits: 1) QoL questionnaires missed at Week 9 and 18 tumor assessment visits (required per protocol), 2) AE assessment incomplete at Week 6 (diarrhoea documented but not captured on AE form), 3) Abnormal troponin at Week 9 not reported as AE despite meeting criteria for medical significance, 4) Complete visit missed at Week 24. While some missing assessments were due to patient condition (breathlessness, death), protocol deviations still occurred as required assessments were not completed per schedule."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "EP-001",
+      "severity": "info",
+      "action_required": "PFS_EVENT_DETECTED",
+      "evidence": [
+        "Tumor assessment on 2025-01-09 shows overall_response = 'Progressive Disease'",
+        "New hepatic lesion detected on 2025-01-09 (new_lesions = 1)",
+        "Progression flag = 1 on 2025-01-09 assessment",
+        "Assessment notes confirm 'New hepatic lesion (segment VI, 1.2cm) detected. Primary disease stable but new lesion = PD per RECIST 1.1'",
+        "PFS event date explicitly documented as 2025-01-09 in assessment notes",
+        "Study phase is post_randomization, indicating subject was already enrolled and treated"
+      ],
+      "reasoning": "Subject 101-901 definitively meets the exclusion criterion EP-001 for detection of disease progression per RECIST 1.1. The tumor assessment on 2025-01-09 clearly documents Progressive Disease with a new hepatic lesion, meeting RECIST 1.1 criteria for progression (appearance of one or more new lesions). This represents the primary endpoint event (PFS) occurring during the post-randomization phase. The subject had initially shown Partial Response on 2024-10-17 but progressed by 2025-01-09, establishing a clear PFS event date."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "EP-005",
+      "severity": "minor",
+      "action_required": "DATA_QUALITY_ISSUE",
+      "evidence": [
+        "Week 9 visit (2024-10-17): QoL questionnaire NOT completed - patient too breathless due to immune pneumonitis Grade 2",
+        "Week 18 visit (2025-01-09): QoL questionnaire not completed again at this visit during survival follow-up",
+        "Week 24 (End of Treatment) visit (2025-02-17): Visit missed entirely - patient too unwell to attend, death reported by family",
+        "Follow-up visit: Not attended - subject deceased 2025-04-14",
+        "Baseline visit (2024-08-15): No specific mention of QoL completion in visit notes, though 'All baseline assessments completed' was documented"
+      ],
+      "reasoning": "The exclusion criterion EP-005 requires EORTC QLQ-C30 questionnaire completion at required study timepoints (Baseline, Week 9, Week 18, Week 24 End of Treatment, Follow-up). The visit records clearly document that the QoL questionnaire was NOT completed at Week 9 and Week 18 visits. The Week 24 EOT visit was missed entirely, and the Follow-up visit could not occur due to subject's death. While the baseline visit notes indicate 'All baseline assessments completed,' there's no specific documentation of QoL questionnaire completion. Given this is a post-randomization phase evaluation, the missed QoL assessments represent protocol deviations rather than screening failures. However, the criterion specifically states questionnaire completion is required at these timepoints, and the documented failures to complete at multiple required visits mean the subject meets this exclusion criterion."
+    },
+    {
+      "subject_id": "101-901",
+      "rule_id": "EXCL-008",
+      "severity": "critical",
+      "action_required": "SAFETY_SIGNAL_AESI",
+      "evidence": [
+        "QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION"
+      ],
+      "reasoning": "Laboratory check: QTcF: 478 msec > 470 msec (ECG date: 2024-07-22, Sinus rhythm. QTcF 478ms (borderline prolonged). Serum K+ 3.1 at time of ECG.) -> VIOLATION"
+    }
+  ],
+  "total_subjects": 1,
+  "completed_subjects": 1,
+  "usage": {
+    "total_input_tokens": 555939,
+    "total_output_tokens": 25609,
+    "total_api_calls": 100,
+    "llm_rule_evaluations": 27,
+    "input_cost_per_million": 3.0,
+    "output_cost_per_million": 15.0,
+    "total_tokens": 581548,
+    "estimated_cost_usd": 2.051952,
+    "estimated_cost_display": "$2.0520"
+  },
+  "started_at": 1771486538.2020903,
+  "finished_at": 1771487467.7151492,
+  "saved_at": "2026-02-19 13:21:07"
+}

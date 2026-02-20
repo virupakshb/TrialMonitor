@@ -485,6 +485,36 @@ count = insert_data('queries', part3_data['queries'], [
 ])
 print(f"   ✓ Queries: {count} records")
 
+# ---------------------------------------------------------------------------
+# Seed subject 101-901 (Margaret Chen) — demo/test subject used in evaluations
+# ---------------------------------------------------------------------------
+cur.execute("""
+    INSERT OR IGNORE INTO subjects (
+        subject_id, site_id, screening_number, randomization_number,
+        initials, treatment_arm, treatment_arm_name, randomization_date,
+        screening_date, consent_date, study_status,
+        discontinuation_date, discontinuation_reason
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+""", (
+    '101-901', '101', 'SCR-901', 'RAND-901',
+    'MC', 1, 'NovaPlex-450 + Chemotherapy', '2024-08-15',
+    '2024-07-22', '2024-07-18', 'Discontinued',
+    '2024-11-13', 'Adverse Event - Immune myocarditis with cardiac arrest'
+))
+
+cur.execute("""
+    INSERT OR IGNORE INTO demographics (
+        subject_id, date_of_birth, age, sex, race, ethnicity,
+        weight_kg, height_cm, bmi, ecog_performance_status,
+        smoking_status, smoking_pack_years
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+""", (
+    '101-901', '1963-03-14', 61, 'Female', 'Asian',
+    'Not Hispanic or Latino', 58.5, 162.0, 22.3, 1,
+    'Former', 18.0
+))
+print("   ✓ Demo subject 101-901 (Margaret Chen) seeded")
+
 # Commit and close
 conn.commit()
 

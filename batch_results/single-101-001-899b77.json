@@ -1,0 +1,96 @@
+{
+  "job_id": "single-101-001-899b77",
+  "run_type": "single",
+  "subject_id": "101-001",
+  "status": "done",
+  "total_subjects": 1,
+  "completed_subjects": 1,
+  "total_violations": 0,
+  "all_violations": [],
+  "results": [
+    {
+      "subject_id": "101-001",
+      "results": [
+        {
+          "rule_id": "EXCL-001",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "Rule does not apply to post_randomization phase",
+          "confidence": "high",
+          "evaluation_method": "not_applicable",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": false,
+          "execution_time_ms": 0,
+          "evaluated_at": "2026-02-18T18:59:58.771434"
+        },
+        {
+          "rule_id": "EXCL-002",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": true,
+          "violated": false,
+          "severity": null,
+          "evidence": [],
+          "reasoning": "",
+          "confidence": "medium",
+          "evaluation_method": "llm_with_tools",
+          "tools_used": [
+            "check_medical_history"
+          ],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [],
+          "requires_review": true,
+          "execution_time_ms": 6911,
+          "evaluated_at": "2026-02-18T19:00:05.682960"
+        },
+        {
+          "rule_id": "EXCL-008",
+          "subject_id": "101-001",
+          "visit_id": null,
+          "passed": false,
+          "violated": false,
+          "severity": null,
+          "evidence": [
+            "No QTcF result found"
+          ],
+          "reasoning": "Missing required lab data",
+          "confidence": "high",
+          "evaluation_method": "deterministic",
+          "tools_used": [],
+          "action_required": null,
+          "recommendation": "",
+          "missing_data": [
+            "QTcF"
+          ],
+          "requires_review": true,
+          "execution_time_ms": 4,
+          "evaluated_at": "2026-02-18T19:00:05.687660"
+        }
+      ],
+      "violations": [],
+      "violations_found": 0
+    }
+  ],
+  "usage": {
+    "total_input_tokens": 4111,
+    "total_output_tokens": 377,
+    "total_api_calls": 2,
+    "llm_rule_evaluations": 1,
+    "input_cost_per_million": 3.0,
+    "output_cost_per_million": 15.0,
+    "total_tokens": 4488,
+    "estimated_cost_usd": 0.017988,
+    "estimated_cost_display": "$0.0180"
+  },
+  "started_at": 1771421405.6876602,
+  "finished_at": 1771421405.6876602,
+  "saved_at": "2026-02-18 19:00:05"
+}
