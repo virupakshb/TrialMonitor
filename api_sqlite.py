@@ -1402,16 +1402,21 @@ def get_all_violations(
 # Serve React frontend build (production / Railway deployment)
 # ---------------------------------------------------------------------------
 FRONTEND_BUILD = os.path.join(os.path.dirname(__file__), "frontend", "dist")
-if os.path.exists(FRONTEND_BUILD):
-    # Mount static assets (JS/CSS/images produced by Vite)
-    _assets_dir = os.path.join(FRONTEND_BUILD, "assets")
-    if os.path.exists(_assets_dir):
-        app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
-    def serve_frontend(full_path: str):
-        """Catch-all: return index.html so React Router handles client-side routing."""
-        return FileResponse(os.path.join(FRONTEND_BUILD, "index.html"))
+# Always mount assets if the directory exists
+_assets_dir = os.path.join(FRONTEND_BUILD, "assets")
+if os.path.exists(_assets_dir):
+    app.mount("/assets", StaticFiles(directory=_assets_dir), name="assets")
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_frontend(full_path: str):
+    """Catch-all: return index.html so React Router handles client-side routing."""
+    index = os.path.join(FRONTEND_BUILD, "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    # Fallback if frontend not built
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"message": "Frontend not built. API is running.", "docs": "/docs"})
 
 
 if __name__ == "__main__":
