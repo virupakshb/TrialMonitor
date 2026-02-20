@@ -75,7 +75,7 @@ function App() {
       <Header currentView={currentView} setCurrentView={setCurrentView} />
       <UsageBanner />
       <main className="main-content">
-        {currentView === 'dashboard' && <Dashboard />}
+        {currentView === 'dashboard' && <Dashboard onNavigate={setCurrentView} />}
         {currentView === 'rules' && <RuleLibrary />}
         {currentView === 'subjects' && (
           <SubjectList onSelectSubject={(id) => {
@@ -132,7 +132,7 @@ function Header({ currentView, setCurrentView }) {
 }
 
 // Dashboard - Overview
-function Dashboard() {
+function Dashboard({ onNavigate }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -190,23 +190,26 @@ function Dashboard() {
       <div className="quick-actions">
         <h3>Quick Actions</h3>
         <div className="actions-grid">
-          <ActionCard 
+          <ActionCard
             title="Execute Rules"
             description="Run all active rules for subjects"
             icon="▶️"
             action="execute"
+            onNavigate={onNavigate}
           />
-          <ActionCard 
+          <ActionCard
             title="View Violations"
             description="Review flagged issues"
             icon="🚨"
             action="violations"
+            onNavigate={onNavigate}
           />
-          <ActionCard 
+          <ActionCard
             title="Manage Rules"
             description="Configure and edit rules"
             icon="📋"
             action="rules"
+            onNavigate={onNavigate}
           />
         </div>
       </div>
@@ -214,9 +217,10 @@ function Dashboard() {
   );
 }
 
-function ActionCard({ title, description, icon }) {
+function ActionCard({ title, description, icon, action, onNavigate }) {
   return (
-    <div className="action-card">
+    <div className="action-card" onClick={() => onNavigate && onNavigate(action)}
+      style={{ cursor: 'pointer' }}>
       <div className="action-icon">{icon}</div>
       <h4>{title}</h4>
       <p>{description}</p>
@@ -1453,13 +1457,18 @@ function RuleExecutor({ onNavigate }) {
             color: mode === 'single' ? 'white' : '#374151', fontWeight: 600 }}>
           👤 Single Subject
         </button>
-        <button onClick={() => setMode('batch')}
-          style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', cursor: 'pointer',
-            background: mode === 'batch' ? '#7c3aed' : '#e5e7eb',
-            color: mode === 'batch' ? 'white' : '#374151', fontWeight: 600 }}>
-          👥 All Subjects (Batch)
+        <button
+          disabled
+          title="Batch execution disabled — runs all 100 subjects and may incur significant API costs"
+          style={{ padding: '8px 20px', borderRadius: '6px', border: 'none',
+            cursor: 'not-allowed', background: '#e5e7eb', color: '#9ca3af',
+            fontWeight: 600, opacity: 0.6 }}>
+          👥 All Subjects (Batch) 🔒
         </button>
       </div>
+      <p style={{ fontSize: '12px', color: '#94a3b8', margin: '-12px 0 16px 0' }}>
+        ⚠️ Batch mode disabled — contact admin to enable
+      </p>
 
       {/* Single Subject Mode */}
       {mode === 'single' && (
