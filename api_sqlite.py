@@ -66,7 +66,11 @@ def dict_from_row(row):
 
 @app.get("/")
 def root():
-    """Root endpoint with API information"""
+    """Serve React frontend if built (production), otherwise return API info (local dev)."""
+    index = os.path.join(os.path.dirname(__file__), "frontend", "dist", "index.html")
+    if os.path.exists(index):
+        return FileResponse(index)
+    # Local dev fallback — no frontend build present
     return {
         "api": "Clinical Trial Monitoring System",
         "protocol": "NVX-1218.22",
