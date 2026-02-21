@@ -28,6 +28,7 @@ COPY synthetic_data_part2.json .
 COPY synthetic_data_part3.json .
 COPY schema.sql .
 COPY batch_results/ ./batch_results/
+COPY tmf_documents/ ./tmf_documents/
 
 # Startup script: always re-seed DB then launch API (ensures latest data on every deploy)
 RUN printf '#!/bin/bash\nset -e\necho "Seeding database..."\npython /app/create_sqlite_db.py\necho "Database ready."\nexec uvicorn api_sqlite:app --host 0.0.0.0 --port ${PORT:-8000}\n' > /app/start.sh \
