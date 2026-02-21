@@ -1409,6 +1409,15 @@ def get_all_violations(
 # CTMS — MONITORING VISITS ENDPOINTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _calculate_risk(open_findings: int, critical_findings: int, enrollment_gap: int, planned_enrollment: int) -> str:
+    """Deterministic site risk score: High / Medium / Low."""
+    gap_pct = (enrollment_gap / planned_enrollment * 100) if planned_enrollment > 0 else 0
+    if critical_findings > 0 or open_findings >= 3 or gap_pct >= 40:
+        return 'High'
+    elif open_findings >= 2 or gap_pct >= 20:
+        return 'Medium'
+    return 'Low'
+
 @app.get("/api/ctms/site/{site_id}")
 def get_ctms_site(site_id: str):
     """Get site details + monitoring visit timeline for a site."""
@@ -1440,6 +1449,435 @@ def get_ctms_site(site_id: str):
                 pass
 
     return {"site": site_data, "monitoring_visits": visits}
+
+
+@app.get("/api/ctms/sites-overview")
+def get_ctms_sites_overview():
+    """
+    Returns all sites with aggregated CRA workstation stats:
+    subject count, open/critical findings, TMF readiness score, risk level.
+    Also returns protocol banner for the study header.
+    """
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        cur.execute("SELECT * FROM sites ORDER BY site_id")
+        sites = [dict_from_row(r) for r in cur.fetchall()]
+
+        for site in sites:
+            sid = site['site_id']
+
+            # Active subjects (not screen failed or withdrawn)
+            cur.execute(
+                "SELECT COUNT(*) FROM subjects WHERE site_id = ? AND study_status NOT IN ('Screen Failed','Withdrawn')",
+                (sid,)
+            )
+            site['active_subjects'] = cur.fetchone()[0]
+
+            # Open findings across all visits for this site
+            cur.execute("""
+                SELECT COUNT(*) FROM visit_findings vf
+                JOIN monitoring_visits mv ON mv.monitoring_visit_id = vf.monitoring_visit_id
+                WHERE mv.site_id = ? AND vf.status = 'Open'
+            """, (sid,))
+            site['open_findings'] = cur.fetchone()[0]
+
+            # Critical open findings
+            cur.execute("""
+                SELECT COUNT(*) FROM visit_findings vf
+                JOIN monitoring_visits mv ON mv.monitoring_visit_id = vf.monitoring_visit_id
+                WHERE mv.site_id = ? AND vf.status = 'Open' AND vf.severity = 'Critical'
+            """, (sid,))
+            site['critical_findings'] = cur.fetchone()[0]
+
+            # Visit stats
+            cur.execute("""
+                SELECT COUNT(*), MAX(COALESCE(actual_date, planned_date))
+                FROM monitoring_visits WHERE site_id = ?
+            """, (sid,))
+            row = cur.fetchone()
+            site['visit_count'] = row[0]
+            site['last_visit_date'] = row[1]
+
+            # Next planned visit
+            cur.execute("""
+                SELECT planned_date FROM monitoring_visits
+                WHERE site_id = ? AND status IN ('Planned','Confirmed')
+                ORDER BY planned_date ASC LIMIT 1
+            """, (sid,))
+            nv = cur.fetchone()
+            site['next_visit_date'] = nv[0] if nv else None
+
+            # TMF score: present / total mandatory required
+            cur.execute("SELECT COUNT(*) FROM tmf_requirements WHERE is_mandatory = 1")
+            total_req = cur.fetchone()[0]
+            cur.execute("""
+                SELECT COUNT(*) FROM tmf_documents
+                WHERE site_id = ? AND status = 'Present'
+            """, (sid,))
+            present = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM tmf_documents WHERE site_id = ? AND status = 'Missing'", (sid,))
+            missing = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM tmf_documents WHERE site_id = ? AND status = 'Expiring'", (sid,))
+            expiring = cur.fetchone()[0]
+            site['tmf_total_required'] = total_req
+            site['tmf_present'] = present
+            site['tmf_missing'] = missing
+            site['tmf_expiring'] = expiring
+            site['tmf_score'] = round(present / total_req * 100) if total_req > 0 else 0
+
+            # Risk score
+            enrollment_gap = max(0, (site.get('planned_enrollment') or 0) - (site.get('actual_enrollment') or 0))
+            site['enrollment_gap'] = enrollment_gap
+            site['risk'] = _calculate_risk(
+                open_findings=site['open_findings'],
+                critical_findings=site['critical_findings'],
+                enrollment_gap=enrollment_gap,
+                planned_enrollment=site.get('planned_enrollment') or 1
+            )
+
+        # Protocol banner
+        cur.execute("""
+            SELECT protocol_number, protocol_name, phase, indication, sponsor_name,
+                   study_start_date, estimated_completion_date, planned_sample_size
+            FROM protocol_info LIMIT 1
+        """)
+        protocol = dict_from_row(cur.fetchone())
+
+    return {"protocol": protocol, "sites": sites}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TMF ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/tmf/site/{site_id}")
+def get_tmf_site(site_id: str):
+    """TMF document compliance status for a site."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT td.*, tr.is_mandatory, tr.validity_months
+            FROM tmf_documents td
+            LEFT JOIN tmf_requirements tr ON tr.document_type = td.document_type
+            WHERE td.site_id = ?
+            ORDER BY td.category, td.document_type
+        """, (site_id,))
+        docs = [dict_from_row(r) for r in cur.fetchall()]
+
+        cur.execute("SELECT COUNT(*) FROM tmf_requirements WHERE is_mandatory = 1")
+        total_req = cur.fetchone()[0]
+
+    present = sum(1 for d in docs if d['status'] == 'Present')
+    missing = sum(1 for d in docs if d['status'] == 'Missing')
+    expiring = sum(1 for d in docs if d['status'] == 'Expiring')
+    superseded = sum(1 for d in docs if d['status'] == 'Superseded')
+    tmf_score = round(present / total_req * 100) if total_req > 0 else 0
+
+    return {
+        "site_id": site_id,
+        "tmf_score": tmf_score,
+        "total_required": total_req,
+        "present": present,
+        "missing": missing,
+        "expiring": expiring,
+        "superseded": superseded,
+        "documents": docs
+    }
+
+
+@app.get("/api/tmf/files/{site_id}/{filename}")
+def serve_tmf_file(site_id: str, filename: str):
+    """Serve a TMF PDF document for a site."""
+    # Security: only allow alphanumeric, dash, underscore, dot
+    import re
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename) or '..' in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    file_path = os.path.join(os.path.dirname(__file__), "tmf_documents", f"site_{site_id}", filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return FileResponse(file_path, media_type="application/pdf",
+                        headers={"Content-Disposition": f"inline; filename={filename}"})
+
+
+@app.get("/api/tmf/files/study/{filename}")
+def serve_tmf_study_file(filename: str):
+    """Serve a study-level TMF PDF document."""
+    import re
+    if not re.match(r'^[a-zA-Z0-9_\-\.]+$', filename) or '..' in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    file_path = os.path.join(os.path.dirname(__file__), "tmf_documents", "study", filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="Document not found")
+    return FileResponse(file_path, media_type="application/pdf",
+                        headers={"Content-Disposition": f"inline; filename={filename}"})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CRA COPILOT CHAT ENDPOINT
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.post("/api/chat")
+def cra_copilot_chat(body: dict):
+    """
+    CRA Copilot — context-aware AI assistant.
+    Receives: { message, site_id, visit_id, history }
+    Returns: { type, text, document, table }
+    """
+    import json as _json
+    from anthropic import Anthropic
+
+    message = body.get('message', '').strip()
+    site_id = body.get('site_id') or ''
+    visit_id = body.get('visit_id')
+    history = body.get('history', [])
+
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {
+            "type": "text",
+            "text": "CRA Copilot is not available — ANTHROPIC_API_KEY not configured.",
+            "document": None,
+            "table": None
+        }
+
+    # ── Build context from DB ──────────────────────────────────────────────
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Protocol
+        cur.execute("""
+            SELECT protocol_number, protocol_name, phase, indication, sponsor_name,
+                   primary_objective, primary_endpoint, planned_sample_size,
+                   study_start_date, estimated_completion_date
+            FROM protocol_info LIMIT 1
+        """)
+        proto = dict_from_row(cur.fetchone()) or {}
+
+        # Site info
+        site_info = {}
+        site_subjects = []
+        open_findings_list = []
+        tmf_issues = []
+        upcoming_visit = None
+
+        if site_id:
+            cur.execute("SELECT * FROM sites WHERE site_id = ?", (site_id,))
+            s = cur.fetchone()
+            if s:
+                site_info = dict_from_row(s)
+
+            cur.execute("""
+                SELECT COUNT(*) FROM subjects
+                WHERE site_id = ? AND study_status NOT IN ('Screen Failed','Withdrawn')
+            """, (site_id,))
+            active_count = cur.fetchone()[0]
+            site_info['active_subjects'] = active_count
+
+            # Open findings
+            cur.execute("""
+                SELECT vf.severity, vf.finding_type, vf.description, vf.subject_id,
+                       vf.status, vf.due_date, mv.visit_label
+                FROM visit_findings vf
+                JOIN monitoring_visits mv ON mv.monitoring_visit_id = vf.monitoring_visit_id
+                WHERE mv.site_id = ? AND vf.status = 'Open'
+                ORDER BY CASE vf.severity WHEN 'Critical' THEN 1 WHEN 'Major' THEN 2 ELSE 3 END
+            """, (site_id,))
+            open_findings_list = [dict_from_row(r) for r in cur.fetchall()]
+
+            # Upcoming visit
+            cur.execute("""
+                SELECT * FROM monitoring_visits
+                WHERE site_id = ? AND status IN ('Planned','Confirmed')
+                ORDER BY planned_date ASC LIMIT 1
+            """, (site_id,))
+            uv = cur.fetchone()
+            if uv:
+                upcoming_visit = dict_from_row(uv)
+
+            # TMF issues
+            cur.execute("""
+                SELECT document_type, category, status, notes, expiry_date
+                FROM tmf_documents
+                WHERE site_id = ? AND status IN ('Missing','Expiring','Superseded')
+            """, (site_id,))
+            tmf_issues = [dict_from_row(r) for r in cur.fetchall()]
+
+            # Available TMF documents
+            cur.execute("""
+                SELECT document_type, title, version, file_path, status
+                FROM tmf_documents WHERE site_id = ? AND file_path IS NOT NULL
+            """, (site_id,))
+            site_subjects = [dict_from_row(r) for r in cur.fetchall()]
+
+        # All sites summary
+        cur.execute("""
+            SELECT s.site_id, s.site_name, s.country,
+                COUNT(DISTINCT subj.subject_id) as enrolled,
+                SUM(CASE WHEN vf.status='Open' THEN 1 ELSE 0 END) as open_findings
+            FROM sites s
+            LEFT JOIN subjects subj ON subj.site_id = s.site_id
+            LEFT JOIN monitoring_visits mv ON mv.site_id = s.site_id
+            LEFT JOIN visit_findings vf ON vf.monitoring_visit_id = mv.monitoring_visit_id
+            GROUP BY s.site_id, s.site_name, s.country
+            ORDER BY s.site_id
+        """)
+        all_sites_summary = [dict_from_row(r) for r in cur.fetchall()]
+
+    # ── Build system prompt ──────────────────────────────────────────────────
+    context_parts = []
+    context_parts.append(f"""PROTOCOL: {proto.get('protocol_number')} -- {proto.get('protocol_name')}
+Phase: {proto.get('phase')} | Indication: {proto.get('indication')}
+Sponsor: {proto.get('sponsor_name')}
+Primary Objective: {proto.get('primary_objective','')}
+Primary Endpoint: {proto.get('primary_endpoint','')}
+Planned Sample Size: {proto.get('planned_sample_size')}
+Study Start: {proto.get('study_start_date')} | Est. Completion: {proto.get('estimated_completion_date')}""")
+
+    if site_id and site_info:
+        context_parts.append(f"""
+CURRENT SITE CONTEXT: Site {site_id} -- {site_info.get('site_name')}, {site_info.get('city','')}, {site_info.get('country','')}
+Principal Investigator: {site_info.get('principal_investigator')}
+Site Coordinator: {site_info.get('site_coordinator')}
+Enrolled: {site_info.get('actual_enrollment')} / {site_info.get('planned_enrollment')} planned
+Active Subjects: {site_info.get('active_subjects')}""")
+
+    if open_findings_list:
+        findings_text = "\n".join([
+            f"  - [{f['severity']}] {f['finding_type']} | Subject {f.get('subject_id','N/A')} | {f['description'][:80]} | Due: {f.get('due_date','TBD')}"
+            for f in open_findings_list
+        ])
+        context_parts.append(f"\nOPEN FINDINGS ({len(open_findings_list)} total):\n{findings_text}")
+    else:
+        context_parts.append("\nOPEN FINDINGS: None")
+
+    if upcoming_visit:
+        context_parts.append(f"\nNEXT VISIT: {upcoming_visit.get('visit_label')} planned {upcoming_visit.get('planned_date')}, CRA: {upcoming_visit.get('cra_name')}, Status: {upcoming_visit.get('status')}")
+
+    if tmf_issues:
+        tmf_text = "\n".join([
+            f"  - [{t['status']}] {t['document_type']} ({t['category']}) | {t.get('notes','')[:60]}"
+            for t in tmf_issues
+        ])
+        context_parts.append(f"\nTMF ISSUES ({len(tmf_issues)} documents need attention):\n{tmf_text}")
+
+    if site_subjects:
+        doc_list = "\n".join([
+            f"  - {d['document_type']}: \"{d['title']}\" ({d['status']}) | file: {d.get('file_path','')}"
+            for d in site_subjects
+        ])
+        context_parts.append(f"\nAVAILABLE TMF DOCUMENTS (can be fetched):\n{doc_list}")
+
+    all_sites_text = "\n".join([
+        f"  Site {s['site_id']}: {s['site_name']} ({s['country']}) -- {s['enrolled']} enrolled, {s['open_findings'] or 0} open findings"
+        for s in all_sites_summary
+    ])
+    context_parts.append(f"\nALL SITES SUMMARY:\n{all_sites_text}")
+
+    system_prompt = f"""You are CRA Copilot, an expert AI assistant for Clinical Research Associates (CRAs) working on clinical trial NVX-1218.22 (NovaPlex-450 in Advanced NSCLC).
+
+You have real-time access to the following trial data:
+
+{"".join(context_parts)}
+
+INSTRUCTIONS:
+1. Answer questions about the protocol, site operations, findings, and TMF documents accurately using the data above.
+2. If asked to show/fetch/display a document (delegation log, IRB approval, ICF, CV, GCP cert, lab cert, etc.), respond with intent "document_fetch" and identify which document_type from the available TMF documents list.
+3. If the question is about data (findings, subjects, enrollment), respond with intent "data_answer" and include a data_table if appropriate.
+4. If the question is about protocol details (dosing, eligibility, endpoints, visit schedule), respond with intent "protocol_qa".
+5. If the question asks for a summary of what to do/prepare, respond with intent "action_summary".
+6. Always be concise, accurate, and professional. Use the actual data provided.
+7. For document requests, extract the file_path from the AVAILABLE TMF DOCUMENTS list and include it exactly in your response.
+
+ALWAYS respond in valid JSON with this exact structure:
+{{
+  "intent": "document_fetch|data_answer|protocol_qa|action_summary",
+  "text": "Your response text here (conversational, professional)",
+  "document_type": "exact document_type string if intent=document_fetch, else null",
+  "file_path": "exact file_path from TMF documents list if intent=document_fetch, else null",
+  "document_title": "document title if intent=document_fetch, else null",
+  "data_table": null or {{"headers": ["col1","col2"], "rows": [["val1","val2"]]}}
+}}"""
+
+    # ── Call LLM ────────────────────────────────────────────────────────────
+    client = Anthropic(api_key=api_key)
+
+    messages = []
+    # Add conversation history (last 6 messages)
+    for h in history[-6:]:
+        if h.get('role') in ('user', 'assistant') and h.get('content'):
+            messages.append({"role": h['role'], "content": str(h['content'])})
+
+    messages.append({"role": "user", "content": message})
+
+    try:
+        response = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=1500,
+            system=system_prompt,
+            messages=messages
+        )
+        raw = response.content[0].text.strip()
+
+        # Parse JSON response
+        try:
+            if raw.startswith('```'):
+                raw = raw.split('```')[1]
+                if raw.startswith('json'):
+                    raw = raw[4:]
+            llm_data = _json.loads(raw)
+        except Exception:
+            # Fallback: return as plain text
+            return {"type": "text", "text": raw, "document": None, "table": None}
+
+        intent = llm_data.get('intent', 'text')
+        text = llm_data.get('text', raw)
+        doc_result = None
+        table_result = None
+
+        if intent == 'document_fetch':
+            file_path = llm_data.get('file_path')
+            doc_title = llm_data.get('document_title', llm_data.get('document_type', 'Document'))
+            if file_path:
+                # Build the API URL from the file_path
+                # file_path format: tmf_documents/site_101/delegation_log_v1.pdf
+                parts = file_path.replace('\\', '/').split('/')
+                if len(parts) >= 3:
+                    folder = parts[1]  # e.g. site_101
+                    fname = parts[2]
+                    if folder.startswith('site_'):
+                        sid_from_path = folder.replace('site_', '')
+                        doc_url = f"/api/tmf/files/{sid_from_path}/{fname}"
+                    else:
+                        doc_url = f"/api/tmf/files/study/{fname}"
+                else:
+                    doc_url = None
+                doc_result = {
+                    "title": doc_title,
+                    "url": doc_url,
+                    "file_path": file_path
+                }
+
+        if llm_data.get('data_table'):
+            table_result = llm_data['data_table']
+
+        return {
+            "type": intent,
+            "text": text,
+            "document": doc_result,
+            "table": table_result
+        }
+
+    except Exception as e:
+        return {
+            "type": "text",
+            "text": f"I encountered an error processing your request. Please try again. ({str(e)[:100]})",
+            "document": None,
+            "table": None
+        }
 
 
 @app.get("/api/ctms/monitoring-visits/{monitoring_visit_id}")

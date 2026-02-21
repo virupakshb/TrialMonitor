@@ -69,37 +69,53 @@ function UsageBanner() {
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatContext, setChatContext] = useState({ site_id: '', visit_id: null });
 
   return (
     <div className="App">
-      <Header currentView={currentView} setCurrentView={setCurrentView} />
+      <Header currentView={currentView} setCurrentView={setCurrentView} chatOpen={chatOpen} setChatOpen={setChatOpen} />
       <UsageBanner />
-      <main className="main-content">
-        {currentView === 'dashboard' && <Dashboard onNavigate={setCurrentView} />}
-        {currentView === 'rules' && <RuleLibrary />}
-        {currentView === 'subjects' && (
-          <SubjectList onSelectSubject={(id) => {
-            setSelectedSubject(id);
-            setCurrentView('subject-detail');
-          }} />
-        )}
-        {currentView === 'subject-detail' && selectedSubject && (
-          <SubjectDashboard 
-            subjectId={selectedSubject}
-            onBack={() => setCurrentView('subjects')}
+      <div style={{ display: 'flex', position: 'relative' }}>
+        <main className="main-content" style={{ flex: 1, minWidth: 0 }}>
+          {currentView === 'dashboard' && <Dashboard onNavigate={setCurrentView} />}
+          {currentView === 'rules' && <RuleLibrary />}
+          {currentView === 'subjects' && (
+            <SubjectList onSelectSubject={(id) => {
+              setSelectedSubject(id);
+              setCurrentView('subject-detail');
+            }} />
+          )}
+          {currentView === 'subject-detail' && selectedSubject && (
+            <SubjectDashboard
+              subjectId={selectedSubject}
+              onBack={() => setCurrentView('subjects')}
+            />
+          )}
+          {currentView === 'violations' && <ViolationsDashboard />}
+          {currentView === 'execute' && <RuleExecutor onNavigate={setCurrentView} />}
+          {currentView === 'results' && <ResultsViewer />}
+          {currentView === 'site' && (
+            <SiteMonitoring
+              onNavigate={setCurrentView}
+              onSelectSubject={(id) => { setSelectedSubject(id); setCurrentView('subject-detail'); }}
+              onContextChange={setChatContext}
+            />
+          )}
+        </main>
+        {chatOpen && (
+          <CopilotPanel
+            context={chatContext}
+            onClose={() => setChatOpen(false)}
           />
         )}
-        {currentView === 'violations' && <ViolationsDashboard />}
-        {currentView === 'execute' && <RuleExecutor onNavigate={setCurrentView} />}
-        {currentView === 'results' && <ResultsViewer />}
-        {currentView === 'site' && <SiteMonitoring onNavigate={setCurrentView} onSelectSubject={(id) => { setSelectedSubject(id); setCurrentView('subject-detail'); }} />}
-      </main>
+      </div>
     </div>
   );
 }
 
 // Header with Navigation
-function Header({ currentView, setCurrentView }) {
+function Header({ currentView, setCurrentView, chatOpen, setChatOpen }) {
   const navItems = [
     { id: 'dashboard', label: '📊 Dashboard', icon: '📊' },
     { id: 'subjects', label: '👥 Subjects', icon: '👥' },
@@ -107,7 +123,7 @@ function Header({ currentView, setCurrentView }) {
     { id: 'execute', label: '▶️ Execute', icon: '▶️' },
     { id: 'results', label: '📁 Results', icon: '📁' },
     { id: 'violations', label: '🚨 Violations', icon: '🚨' },
-    { id: 'site', label: '🏥 Site', icon: '🏥' }
+    { id: 'site', label: '📍 My Sites', icon: '📍' }
   ];
 
   return (
@@ -128,6 +144,19 @@ function Header({ currentView, setCurrentView }) {
             <span className="nav-label">{item.label}</span>
           </button>
         ))}
+        <button
+          onClick={() => setChatOpen(o => !o)}
+          style={{
+            marginLeft: '12px', background: chatOpen ? '#1d4ed8' : '#2563eb',
+            color: 'white', border: 'none', borderRadius: '8px',
+            padding: '6px 14px', cursor: 'pointer', fontWeight: 600,
+            fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px',
+            boxShadow: chatOpen ? 'inset 0 2px 4px rgba(0,0,0,0.2)' : 'none',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          💬 Copilot
+        </button>
       </nav>
     </header>
   );
@@ -2084,94 +2113,301 @@ function ResultsViewer() {
 // CTMS — SITE MONITORING VISITS
 // ═══════════════════════════════════════════════════════════════════════════
 
-function SiteMonitoring({ onNavigate, onSelectSubject }) {
-  const SITE_ID = '101';
-  const [siteData, setSiteData] = useState(null);
-  const [selectedVisitId, setSelectedVisitId] = useState(null);
-  const [loading, setLoading] = useState(true);
+// ─── Shared helpers for SiteMonitoring ───────────────────────────────────────
+const statusColor = (s) => ({ 'Completed':'#10b981','Confirmed':'#3b82f6','Planned':'#f59e0b','In Progress':'#8b5cf6','Cancelled':'#94a3b8' }[s]||'#94a3b8');
+const visitIcon  = (s) => ({ 'Completed':'✅','Confirmed':'📋','Planned':'📅','In Progress':'🔄','Cancelled':'❌' }[s]||'📅');
+const riskColors = { 'High': { bg:'#fef2f2', border:'#fca5a5', text:'#dc2626' }, 'Medium': { bg:'#fffbeb', border:'#fde68a', text:'#d97706' }, 'Low': { bg:'#f0fdf4', border:'#86efac', text:'#16a34a' } };
+const countryFlag = (country) => {
+  const map = { 'United States':'🇺🇸','USA':'🇺🇸','United Kingdom':'🇬🇧','UK':'🇬🇧','Canada':'🇨🇦','Australia':'🇦🇺','Singapore':'🇸🇬' };
+  return map[country] || '🌍';
+};
 
+function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange }) {
+  const [viewLevel, setViewLevel] = useState('study');       // 'study' | 'site' | 'visit'
+  const [selectedSiteId, setSelectedSiteId] = useState(null);
+  const [selectedVisitId, setSelectedVisitId] = useState(null);
+  const [overviewData, setOverviewData] = useState(null);
+  const [siteData, setSiteData] = useState(null);
+  const [tmfData, setTmfData] = useState(null);
+  const [tmfOpen, setTmfOpen] = useState(false);
+  const [loadingOverview, setLoadingOverview] = useState(true);
+  const [loadingSite, setLoadingSite] = useState(false);
+
+  // Fetch study overview on mount
   React.useEffect(() => {
-    fetch(`/api/ctms/site/${SITE_ID}`)
+    fetch('/api/ctms/sites-overview')
       .then(r => r.json())
-      .then(d => { setSiteData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(d => { setOverviewData(d); setLoadingOverview(false); })
+      .catch(() => setLoadingOverview(false));
   }, []);
 
-  if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading site data...</div>;
-  if (!siteData) return <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>Failed to load site data.</div>;
+  const goToSite = (siteId) => {
+    setSelectedSiteId(siteId);
+    setSelectedVisitId(null);
+    setSiteData(null);
+    setTmfData(null);
+    setTmfOpen(false);
+    setLoadingSite(true);
+    setViewLevel('site');
+    if (onContextChange) onContextChange({ site_id: siteId, visit_id: null });
+    fetch(`/api/ctms/site/${siteId}`).then(r => r.json()).then(d => { setSiteData(d); setLoadingSite(false); }).catch(() => setLoadingSite(false));
+  };
 
-  const { site, monitoring_visits } = siteData;
+  const goToVisit = (visitId) => {
+    setSelectedVisitId(visitId);
+    setViewLevel('visit');
+    if (onContextChange) onContextChange({ site_id: selectedSiteId, visit_id: visitId });
+  };
 
-  const statusColor = (s) => ({
-    'Completed': '#10b981', 'Confirmed': '#3b82f6', 'Planned': '#f59e0b',
-    'In Progress': '#8b5cf6', 'Cancelled': '#94a3b8'
-  }[s] || '#94a3b8');
+  const goBackToStudy = () => { setViewLevel('study'); setSelectedSiteId(null); setSelectedVisitId(null); setSiteData(null); setTmfData(null); if (onContextChange) onContextChange({ site_id:'', visit_id:null }); };
+  const goBackToSite  = () => { setViewLevel('site'); setSelectedVisitId(null); if (onContextChange) onContextChange({ site_id: selectedSiteId, visit_id: null }); };
 
-  const visitIcon = (s) => ({
-    'Completed': '✅', 'Confirmed': '📋', 'Planned': '📅', 'In Progress': '🔄', 'Cancelled': '❌'
-  }[s] || '📅');
+  const loadTmf = () => {
+    if (!selectedSiteId) return;
+    fetch(`/api/tmf/site/${selectedSiteId}`).then(r => r.json()).then(setTmfData).catch(() => {});
+    setTmfOpen(true);
+  };
 
-  return (
-    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
-      {/* Site Header */}
-      <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', borderRadius: '12px', padding: '24px', color: 'white', marginBottom: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <div style={{ fontSize: '13px', opacity: 0.7, marginBottom: '4px' }}>Site {site.site_id} · {site.city}, {site.state_province}</div>
-            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>🏥 {site.site_name}</h2>
-            <div style={{ marginTop: '8px', fontSize: '14px', opacity: 0.85 }}>PI: {site.principal_investigator} &nbsp;|&nbsp; Coordinator: {site.site_coordinator}</div>
-          </div>
-          <div style={{ display: 'flex', gap: '16px' }}>
-            {[
-              { label: 'Enrolled', val: site.actual_enrollment },
-              { label: 'Planned', val: site.planned_enrollment },
-              { label: 'Monitoring Visits', val: monitoring_visits.length }
-            ].map(c => (
-              <div key={c.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', padding: '10px 16px' }}>
-                <div style={{ fontSize: '24px', fontWeight: 700 }}>{c.val}</div>
-                <div style={{ fontSize: '11px', opacity: 0.8 }}>{c.label}</div>
-              </div>
-            ))}
-          </div>
+  const refreshSite = () => {
+    if (!selectedSiteId) return;
+    fetch(`/api/ctms/site/${selectedSiteId}`).then(r => r.json()).then(setSiteData).catch(() => {});
+  };
+
+  if (loadingOverview) return <div style={{ padding:'40px', textAlign:'center', color:'#64748b' }}>Loading workstation...</div>;
+  if (!overviewData) return <div style={{ padding:'40px', textAlign:'center', color:'#ef4444' }}>Failed to load workstation data.</div>;
+
+  const { protocol, sites } = overviewData;
+  const totalEnrolled = sites.reduce((s, x) => s + (x.actual_enrollment || 0), 0);
+
+  // ── BREADCRUMB ───────────────────────────────────────────────────────────
+  const Breadcrumb = () => viewLevel === 'study' ? null : (
+    <div style={{ display:'flex', alignItems:'center', gap:'6px', marginBottom:'20px', fontSize:'13px', color:'#64748b' }}>
+      <button onClick={goBackToStudy} style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, padding:0, fontSize:'13px' }}>My Sites</button>
+      {selectedSiteId && (<><span>/</span>
+        {viewLevel === 'visit'
+          ? <button onClick={goBackToSite} style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, padding:0, fontSize:'13px' }}>Site {selectedSiteId}</button>
+          : <span style={{ color:'#374151', fontWeight:600 }}>Site {selectedSiteId}</span>
+        }
+      </>)}
+      {viewLevel === 'visit' && selectedVisitId && (<><span>/</span><span style={{ color:'#374151', fontWeight:600 }}>Visit {selectedVisitId}</span></>)}
+    </div>
+  );
+
+  // ── LEVEL 1: STUDY OVERVIEW ──────────────────────────────────────────────
+  if (viewLevel === 'study') return (
+    <div style={{ padding:'24px', maxWidth:'1200px', margin:'0 auto' }}>
+      {/* Study Banner */}
+      <div style={{ background:'linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%)', borderRadius:'12px', padding:'22px 28px', color:'white', marginBottom:'28px' }}>
+        <div style={{ fontSize:'11px', opacity:0.65, letterSpacing:'0.05em', textTransform:'uppercase', marginBottom:'4px' }}>
+          {protocol.sponsor_name} · {protocol.phase}
+        </div>
+        <h2 style={{ margin:0, fontSize:'20px', fontWeight:700 }}>{protocol.protocol_number} — {protocol.protocol_name}</h2>
+        <div style={{ marginTop:'10px', fontSize:'13px', opacity:0.8, display:'flex', gap:'24px', flexWrap:'wrap' }}>
+          <span>📍 {sites.length} Active Sites</span>
+          <span>👥 {totalEnrolled} Subjects Enrolled</span>
+          <span>🌍 Global Study</span>
+          <span>📅 Est. Completion: {protocol.estimated_completion_date || 'TBD'}</span>
         </div>
       </div>
 
-      {/* Visit Timeline */}
-      <h3 style={{ margin: '0 0 16px', color: '#1e3a5f', fontSize: '16px' }}>Monitoring Visit Timeline</h3>
-      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
-        {monitoring_visits.map((mv, idx) => (
-          <div key={mv.monitoring_visit_id}
-            onClick={() => setSelectedVisitId(mv.monitoring_visit_id === selectedVisitId ? null : mv.monitoring_visit_id)}
-            style={{
-              flex: '1', minWidth: '200px', cursor: 'pointer', borderRadius: '10px', padding: '16px',
-              border: `2px solid ${selectedVisitId === mv.monitoring_visit_id ? statusColor(mv.status) : '#e2e8f0'}`,
-              background: selectedVisitId === mv.monitoring_visit_id ? '#f0f9ff' : 'white',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.07)', transition: 'all 0.2s'
-            }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontWeight: 700, fontSize: '15px' }}>{visitIcon(mv.status)} {mv.visit_label}</span>
-              <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: statusColor(mv.status) + '20', color: statusColor(mv.status) }}>{mv.status}</span>
+      {/* Site Portfolio */}
+      <h3 style={{ margin:'0 0 16px', color:'#1e3a5f', fontSize:'16px', fontWeight:700 }}>Site Portfolio</h3>
+      <div style={{ display:'flex', flexDirection:'column', gap:'14px' }}>
+        {sites.map(s => {
+          const rc = riskColors[s.risk] || riskColors['Low'];
+          const enrollPct = Math.min(100, Math.round((s.actual_enrollment||0) / (s.planned_enrollment||1) * 100));
+          const tmfColor = s.tmf_score >= 90 ? '#10b981' : s.tmf_score >= 75 ? '#f59e0b' : '#ef4444';
+          return (
+            <div key={s.site_id} style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', padding:'18px 22px', boxShadow:'0 1px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'20px', flexWrap:'wrap' }}>
+              {/* Site info */}
+              <div style={{ flex:'2', minWidth:'220px' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', marginBottom:'4px' }}>
+                  <span style={{ fontSize:'18px' }}>{countryFlag(s.country)}</span>
+                  <span style={{ fontWeight:700, fontSize:'15px', color:'#1e3a5f' }}>{s.site_name}</span>
+                  <span style={{ fontSize:'12px', color:'#94a3b8', background:'#f1f5f9', padding:'2px 8px', borderRadius:'8px' }}>Site {s.site_id}</span>
+                </div>
+                <div style={{ fontSize:'13px', color:'#64748b' }}>{s.city}{s.state_province ? `, ${s.state_province}` : ''}, {s.country}</div>
+                <div style={{ fontSize:'12px', color:'#94a3b8', marginTop:'2px' }}>PI: {s.principal_investigator}</div>
+              </div>
+              {/* Enrollment */}
+              <div style={{ flex:'1', minWidth:'140px' }}>
+                <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'4px', fontWeight:600 }}>Enrollment</div>
+                <div style={{ fontSize:'13px', color:'#1e3a5f', fontWeight:700, marginBottom:'4px' }}>{s.actual_enrollment} / {s.planned_enrollment}</div>
+                <div style={{ background:'#e2e8f0', borderRadius:'4px', height:'6px', overflow:'hidden' }}>
+                  <div style={{ width:`${enrollPct}%`, background:'#2563eb', height:'6px', borderRadius:'4px' }}/>
+                </div>
+                <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'2px' }}>{enrollPct}% enrolled</div>
+              </div>
+              {/* Stats */}
+              <div style={{ flex:'1', minWidth:'140px' }}>
+                <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'6px', fontWeight:600 }}>Activity</div>
+                <div style={{ fontSize:'12px', color:'#374151' }}>🔍 {s.visit_count} visit{s.visit_count!==1?'s':''}</div>
+                <div style={{ fontSize:'12px', color: s.open_findings>0 ? '#ef4444':'#10b981', fontWeight: s.open_findings>0 ? 600:400 }}>
+                  {s.open_findings>0 ? `⚠️ ${s.open_findings} open finding${s.open_findings!==1?'s':''}` : '✅ No open findings'}
+                </div>
+                <div style={{ fontSize:'12px', color:'#94a3b8', marginTop:'2px' }}>Last: {s.last_visit_date || 'None'}</div>
+              </div>
+              {/* TMF */}
+              <div style={{ flex:'1', minWidth:'120px' }}>
+                <div style={{ fontSize:'12px', color:'#64748b', marginBottom:'4px', fontWeight:600 }}>TMF Readiness</div>
+                <div style={{ fontSize:'18px', fontWeight:700, color:tmfColor }}>{s.tmf_score}%</div>
+                <div style={{ background:'#e2e8f0', borderRadius:'4px', height:'5px', overflow:'hidden', marginTop:'4px' }}>
+                  <div style={{ width:`${s.tmf_score}%`, background:tmfColor, height:'5px', borderRadius:'4px' }}/>
+                </div>
+                {s.tmf_missing>0 && <div style={{ fontSize:'11px', color:'#ef4444', marginTop:'2px' }}>❌ {s.tmf_missing} missing</div>}
+                {s.tmf_expiring>0 && <div style={{ fontSize:'11px', color:'#f59e0b', marginTop:'2px' }}>⚠️ {s.tmf_expiring} expiring</div>}
+              </div>
+              {/* Risk + action */}
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'8px', minWidth:'120px' }}>
+                <span style={{ padding:'4px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:700, background:rc.bg, border:`1px solid ${rc.border}`, color:rc.text }}>
+                  {s.risk === 'High' ? '🔴' : s.risk === 'Medium' ? '🟡' : '🟢'} {s.risk} Risk
+                </span>
+                <button onClick={() => goToSite(s.site_id)} style={{ background:'#2563eb', color:'white', border:'none', borderRadius:'8px', padding:'7px 16px', cursor:'pointer', fontWeight:600, fontSize:'13px', whiteSpace:'nowrap' }}>
+                  View Site →
+                </button>
+              </div>
             </div>
-            <div style={{ fontSize: '13px', color: '#64748b' }}>{mv.visit_type} · {mv.planned_date}</div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>CRA: {mv.cra_name}</div>
-            {mv.open_findings > 0 && <div style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>⚠️ {mv.open_findings} open finding(s)</div>}
-            {mv.report_status && <div style={{ marginTop: '4px', fontSize: '11px', color: mv.report_status === 'Finalised' ? '#10b981' : '#f59e0b' }}>📄 Report: {mv.report_status}</div>}
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      {/* Visit Detail Panel */}
-      {selectedVisitId && (
-        <MonitoringVisitDetail
-          visitId={selectedVisitId}
-          onSelectSubject={onSelectSubject}
-          onRefresh={() => {
-            fetch(`/api/ctms/site/${SITE_ID}`).then(r => r.json()).then(setSiteData);
-          }}
-        />
-      )}
     </div>
   );
+
+  // ── LEVEL 2: SITE DETAIL ──────────────────────────────────────────────────
+  if (viewLevel === 'site') {
+    if (loadingSite) return <div style={{ padding:'40px', textAlign:'center', color:'#64748b' }}><Breadcrumb/>Loading site data...</div>;
+    if (!siteData) return <div style={{ padding:'40px', textAlign:'center', color:'#ef4444' }}><Breadcrumb/>Failed to load site data.</div>;
+    const { site, monitoring_visits } = siteData;
+    const siteRisk = overviewData.sites.find(s => s.site_id === selectedSiteId) || {};
+    const rc = riskColors[siteRisk.risk] || riskColors['Low'];
+    const tmfScore = siteRisk.tmf_score;
+    const tmfColor = tmfScore >= 90 ? '#10b981' : tmfScore >= 75 ? '#f59e0b' : '#ef4444';
+
+    // Group TMF docs by category
+    const tmfByCategory = {};
+    if (tmfData) {
+      tmfData.documents.forEach(d => {
+        if (!tmfByCategory[d.category]) tmfByCategory[d.category] = [];
+        tmfByCategory[d.category].push(d);
+      });
+    }
+    const tmfStatusIcon = s => ({ 'Present':'✅', 'Missing':'❌', 'Expiring':'⚠️', 'Superseded':'🔄' }[s]||'❓');
+
+    return (
+      <div style={{ padding:'24px', maxWidth:'1200px', margin:'0 auto' }}>
+        <Breadcrumb/>
+        {/* Site Header */}
+        <div style={{ background:'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', borderRadius:'12px', padding:'24px', color:'white', marginBottom:'24px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:'12px' }}>
+            <div>
+              <div style={{ fontSize:'13px', opacity:0.7, marginBottom:'4px' }}>
+                {countryFlag(site.country)} Site {site.site_id} · {site.city}{site.state_province?`, ${site.state_province}`:''}, {site.country}
+                <span style={{ marginLeft:'10px', padding:'2px 8px', borderRadius:'10px', fontSize:'11px', fontWeight:700, background: rc.bg, color: rc.text, border:`1px solid ${rc.border}` }}>
+                  {siteRisk.risk} Risk
+                </span>
+              </div>
+              <h2 style={{ margin:0, fontSize:'22px', fontWeight:700 }}>🏥 {site.site_name}</h2>
+              <div style={{ marginTop:'8px', fontSize:'14px', opacity:0.85 }}>PI: {site.principal_investigator} &nbsp;|&nbsp; Coordinator: {site.site_coordinator}</div>
+            </div>
+            <div style={{ display:'flex', gap:'12px', flexWrap:'wrap' }}>
+              {[{label:'Enrolled', val:`${site.actual_enrollment}/${site.planned_enrollment}`}, {label:'Monitoring Visits', val:monitoring_visits.length}, {label:'TMF Score', val:`${tmfScore}%`}].map(c => (
+                <div key={c.label} style={{ textAlign:'center', background:'rgba(255,255,255,0.15)', borderRadius:'8px', padding:'10px 16px' }}>
+                  <div style={{ fontSize:'20px', fontWeight:700 }}>{c.val}</div>
+                  <div style={{ fontSize:'11px', opacity:0.8 }}>{c.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Visit Timeline */}
+        <h3 style={{ margin:'0 0 14px', color:'#1e3a5f', fontSize:'16px', fontWeight:700 }}>Monitoring Visit Timeline</h3>
+        {monitoring_visits.length === 0 ? (
+          <div style={{ textAlign:'center', padding:'48px', color:'#94a3b8', background:'#f8fafc', borderRadius:'12px', border:'1px dashed #e2e8f0', marginBottom:'24px' }}>
+            <div style={{ fontSize:'36px', marginBottom:'10px' }}>📅</div>
+            <div style={{ fontWeight:600, fontSize:'15px', marginBottom:'6px' }}>No monitoring visits scheduled</div>
+            <div style={{ fontSize:'13px' }}>No visits have been scheduled for this site yet.</div>
+          </div>
+        ) : (
+          <div style={{ display:'flex', gap:'14px', marginBottom:'28px', flexWrap:'wrap' }}>
+            {monitoring_visits.map(mv => (
+              <div key={mv.monitoring_visit_id}
+                onClick={() => goToVisit(mv.monitoring_visit_id)}
+                style={{ flex:'1', minWidth:'180px', cursor:'pointer', borderRadius:'10px', padding:'16px', border:`2px solid ${selectedVisitId === mv.monitoring_visit_id ? statusColor(mv.status) : '#e2e8f0'}`, background: selectedVisitId === mv.monitoring_visit_id ? '#f0f9ff':'white', boxShadow:'0 1px 4px rgba(0,0,0,0.07)', transition:'all 0.2s' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px' }}>
+                  <span style={{ fontWeight:700, fontSize:'15px' }}>{visitIcon(mv.status)} {mv.visit_label}</span>
+                  <span style={{ fontSize:'11px', fontWeight:600, padding:'2px 8px', borderRadius:'12px', background:statusColor(mv.status)+'20', color:statusColor(mv.status) }}>{mv.status}</span>
+                </div>
+                <div style={{ fontSize:'12px', color:'#64748b' }}>{mv.visit_type} · {mv.planned_date}</div>
+                <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'3px' }}>CRA: {mv.cra_name}</div>
+                {mv.open_findings > 0 && <div style={{ marginTop:'6px', fontSize:'12px', color:'#ef4444', fontWeight:600 }}>⚠️ {mv.open_findings} open finding(s)</div>}
+                {mv.report_status && <div style={{ marginTop:'3px', fontSize:'11px', color: mv.report_status==='Finalised'?'#10b981':'#f59e0b' }}>📄 {mv.report_status}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* TMF Status Section */}
+        <div style={{ background:'white', borderRadius:'12px', border:'1px solid #e2e8f0', marginBottom:'24px', overflow:'hidden' }}>
+          <div style={{ padding:'16px 20px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer', background: tmfOpen ? '#f8fafc' : 'white' }} onClick={() => { if(!tmfOpen) loadTmf(); else setTmfOpen(false); }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+              <span style={{ fontSize:'16px', fontWeight:700, color:'#1e3a5f' }}>📁 TMF / Document Status</span>
+              <span style={{ fontSize:'13px', fontWeight:700, color:tmfColor }}>{tmfScore}% Readiness</span>
+              {siteRisk.tmf_missing>0 && <span style={{ fontSize:'12px', color:'#ef4444' }}>❌ {siteRisk.tmf_missing} missing</span>}
+              {siteRisk.tmf_expiring>0 && <span style={{ fontSize:'12px', color:'#f59e0b' }}>⚠️ {siteRisk.tmf_expiring} expiring</span>}
+            </div>
+            <span style={{ fontSize:'12px', color:'#2563eb', fontWeight:600 }}>{tmfOpen ? '▲ Collapse' : '▼ Expand'}</span>
+          </div>
+          {tmfOpen && tmfData && (
+            <div style={{ padding:'0 20px 20px' }}>
+              {/* TMF progress bar */}
+              <div style={{ background:'#e2e8f0', borderRadius:'4px', height:'8px', overflow:'hidden', marginBottom:'20px' }}>
+                <div style={{ width:`${tmfScore}%`, background:tmfColor, height:'8px', borderRadius:'4px' }}/>
+              </div>
+              {Object.entries(tmfByCategory).map(([cat, docs]) => (
+                <div key={cat} style={{ marginBottom:'16px' }}>
+                  <div style={{ fontSize:'12px', fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px' }}>{cat}</div>
+                  {docs.map(d => (
+                    <div key={d.document_id} style={{ display:'flex', alignItems:'center', gap:'10px', padding:'8px 12px', borderRadius:'8px', background:'#f8fafc', marginBottom:'6px', border:'1px solid #e2e8f0' }}>
+                      <span style={{ fontSize:'16px' }}>{tmfStatusIcon(d.status)}</span>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:'13px', fontWeight:600, color:'#1e3a5f' }}>{d.title}</div>
+                        {d.notes && <div style={{ fontSize:'11px', color:'#94a3b8', marginTop:'1px' }}>{d.notes}</div>}
+                        {d.expiry_date && <div style={{ fontSize:'11px', color: d.status==='Expiring'?'#f59e0b':'#94a3b8' }}>Expires: {d.expiry_date}</div>}
+                      </div>
+                      {d.file_path && (
+                        <button onClick={() => window.open(`/api/tmf/files/${selectedSiteId}/${d.file_path.split('/').pop()}`, '_blank')} style={{ background:'#eff6ff', color:'#2563eb', border:'1px solid #bfdbfe', borderRadius:'6px', padding:'4px 10px', cursor:'pointer', fontSize:'12px', fontWeight:600, whiteSpace:'nowrap' }}>
+                          View PDF ↗
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+          {tmfOpen && !tmfData && (
+            <div style={{ padding:'20px', textAlign:'center', color:'#94a3b8' }}>Loading TMF documents...</div>
+          )}
+        </div>
+
+        {/* Visit Detail Panel */}
+        {selectedVisitId && (
+          <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} />
+        )}
+      </div>
+    );
+  }
+
+  // ── LEVEL 3: VISIT DETAIL (full page within site context) ────────────────
+  if (viewLevel === 'visit') return (
+    <div style={{ padding:'24px', maxWidth:'1200px', margin:'0 auto' }}>
+      <Breadcrumb/>
+      <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} />
+    </div>
+  );
+
+  return null;
 }
 
 function MonitoringVisitDetail({ visitId, onSelectSubject, onRefresh }) {
@@ -2553,6 +2789,312 @@ function MonitoringVisitDetail({ visitId, onSelectSubject, onRefresh }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// COPILOT PANEL — slide-in CRA AI assistant
+// ============================================================
+function CopilotPanel({ context, onClose }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = React.useRef(null);
+
+  const siteLabel = context.site_id ? `Site ${context.site_id}` : 'No site selected';
+
+  const starters = [
+    'Show delegation log',
+    'What are open findings for this site?',
+    'What do I need for my next visit?',
+    'Check TMF compliance',
+    'What is the protocol primary endpoint?',
+  ];
+
+  React.useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, loading]);
+
+  const sendMessage = async (text) => {
+    const msg = text || input.trim();
+    if (!msg || loading) return;
+    setInput('');
+
+    const userMsg = { role: 'user', content: msg };
+    setMessages(prev => [...prev, userMsg]);
+    setLoading(true);
+
+    try {
+      const history = messages.map(m => ({ role: m.role, content: m.content }));
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          site_id: context.site_id || '',
+          visit_id: context.visit_id || null,
+          history,
+        }),
+      });
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'assistant', ...data }]);
+    } catch (e) {
+      setMessages(prev => [...prev, { role: 'assistant', type: 'text', text: 'Sorry, I encountered an error. Please try again.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  };
+
+  // Render a single assistant message bubble
+  const renderAssistantContent = (msg) => {
+    if (msg.type === 'document' && msg.document) {
+      const doc = msg.document;
+      const statusColors = { Present: '#16a34a', Missing: '#dc2626', Expiring: '#d97706', Superseded: '#9333ea' };
+      const statusBg    = { Present: '#f0fdf4', Missing: '#fef2f2', Expiring: '#fffbeb', Superseded: '#faf5ff' };
+      return (
+        <div>
+          {msg.text && <p style={{ margin: '0 0 10px', fontSize: '13px', lineHeight: '1.5' }}>{msg.text}</p>}
+          <div style={{
+            background: doc.status ? statusBg[doc.status] || '#f8fafc' : '#f8fafc',
+            border: `1px solid ${doc.status ? statusColors[doc.status] || '#e2e8f0' : '#e2e8f0'}`,
+            borderRadius: '8px', padding: '12px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e3a5f', marginBottom: '4px' }}>
+                  📄 {doc.title || doc.document_type || 'Document'}
+                </div>
+                {doc.version && <div style={{ fontSize: '12px', color: '#64748b' }}>Version: {doc.version}</div>}
+                {doc.status && (
+                  <div style={{ marginTop: '4px' }}>
+                    <span style={{
+                      background: statusColors[doc.status] || '#94a3b8', color: 'white',
+                      fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: 600,
+                    }}>{doc.status}</span>
+                  </div>
+                )}
+              </div>
+              {doc.url && (
+                <button
+                  onClick={() => window.open(doc.url, '_blank')}
+                  style={{
+                    background: '#2563eb', color: 'white', border: 'none',
+                    borderRadius: '6px', padding: '6px 12px', fontSize: '12px',
+                    cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  Open PDF ↗
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (msg.type === 'table' && msg.table) {
+      const { headers, rows } = msg.table;
+      return (
+        <div>
+          {msg.text && <p style={{ margin: '0 0 10px', fontSize: '13px', lineHeight: '1.5' }}>{msg.text}</p>}
+          <div style={{ overflowX: 'auto', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead>
+                <tr style={{ background: '#1e3a5f' }}>
+                  {headers.map((h, i) => (
+                    <th key={i} style={{ padding: '8px 10px', color: 'white', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, ri) => (
+                  <tr key={ri} style={{ background: ri % 2 === 0 ? 'white' : '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{ padding: '7px 10px', color: '#374151', verticalAlign: 'top' }}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Default: text
+    return (
+      <p style={{ margin: 0, fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap', color: '#1e293b' }}>
+        {msg.text || ''}
+      </p>
+    );
+  };
+
+  return (
+    <div style={{
+      width: '400px', flexShrink: 0,
+      display: 'flex', flexDirection: 'column',
+      background: '#f8fafc', borderLeft: '2px solid #e2e8f0',
+      height: 'calc(100vh - 56px)', position: 'sticky', top: '56px',
+      fontFamily: 'inherit',
+    }}>
+      {/* Header */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%)',
+        color: 'white', padding: '14px 16px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: '15px' }}>💬 CRA Copilot</div>
+          <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px' }}>
+            📍 {siteLabel} · NVX-1218.22
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white',
+            borderRadius: '6px', padding: '4px 10px', cursor: 'pointer',
+            fontSize: '16px', lineHeight: 1,
+          }}
+          title="Close Copilot"
+        >×</button>
+      </div>
+
+      {/* Messages area */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+        {/* Empty state — starter suggestions */}
+        {messages.length === 0 && !loading && (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>🤖</div>
+              <div style={{ fontWeight: 600, color: '#1e3a5f', fontSize: '14px' }}>Hi, I'm your CRA Copilot!</div>
+              <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>
+                Ask me anything about protocol, site data, findings, or documents.
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {starters.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(s)}
+                  style={{
+                    background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px',
+                    padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+                    fontSize: '13px', color: '#374151', fontWeight: 500,
+                    transition: 'border-color 0.15s', fontFamily: 'inherit',
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = '#2563eb'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = '#e2e8f0'}
+                >
+                  💡 {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Message bubbles */}
+        {messages.map((msg, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+            <div style={{
+              maxWidth: '90%',
+              background: msg.role === 'user' ? '#2563eb' : 'white',
+              color: msg.role === 'user' ? 'white' : '#1e293b',
+              borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+              padding: '10px 14px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              border: msg.role === 'user' ? 'none' : '1px solid #f1f5f9',
+              fontSize: '13px',
+            }}>
+              {msg.role === 'user' ? (
+                <p style={{ margin: 0, lineHeight: '1.5' }}>{msg.content}</p>
+              ) : (
+                renderAssistantContent(msg)
+              )}
+            </div>
+            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '3px', paddingLeft: '4px', paddingRight: '4px' }}>
+              {msg.role === 'user' ? 'You' : '🤖 Copilot'}
+            </div>
+          </div>
+        ))}
+
+        {/* Typing indicator */}
+        {loading && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <div style={{
+              background: 'white', border: '1px solid #f1f5f9', borderRadius: '12px 12px 12px 2px',
+              padding: '12px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            }}>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                {[0, 1, 2].map(n => (
+                  <div key={n} style={{
+                    width: '7px', height: '7px', borderRadius: '50%', background: '#94a3b8',
+                    animation: `bounce 1.2s ${n * 0.2}s ease-in-out infinite`,
+                  }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input area */}
+      <div style={{
+        padding: '12px 16px', borderTop: '1px solid #e2e8f0',
+        background: 'white', flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Ask about protocol, data, findings, documents..."
+            rows={2}
+            style={{
+              flex: 1, padding: '10px 12px', border: '1px solid #e2e8f0', borderRadius: '8px',
+              fontSize: '13px', resize: 'none', fontFamily: 'inherit', outline: 'none',
+              lineHeight: '1.5', color: '#1e293b',
+            }}
+            onFocus={e => e.target.style.borderColor = '#2563eb'}
+            onBlur={e => e.target.style.borderColor = '#e2e8f0'}
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={loading || !input.trim()}
+            style={{
+              background: loading || !input.trim() ? '#94a3b8' : '#2563eb',
+              color: 'white', border: 'none', borderRadius: '8px',
+              padding: '10px 14px', cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+              fontSize: '16px', flexShrink: 0, height: '52px',
+              transition: 'background 0.15s',
+            }}
+          >
+            {loading ? '⏳' : '➤'}
+          </button>
+        </div>
+        <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '6px', textAlign: 'center' }}>
+          Press Enter to send · Shift+Enter for new line
+        </div>
+      </div>
+
+      {/* Bounce animation via inline style tag */}
+      <style>{`
+        @keyframes bounce {
+          0%, 80%, 100% { transform: translateY(0); }
+          40% { transform: translateY(-6px); }
+        }
+      `}</style>
     </div>
   );
 }

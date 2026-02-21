@@ -6,6 +6,8 @@
 -- DROP EXISTING TABLES (for clean re-creation)
 -- ============================================================================
 
+DROP TABLE IF EXISTS tmf_documents CASCADE;
+DROP TABLE IF EXISTS tmf_requirements CASCADE;
 DROP TABLE IF EXISTS visit_reports CASCADE;
 DROP TABLE IF EXISTS visit_findings CASCADE;
 DROP TABLE IF EXISTS monitoring_visit_subjects CASCADE;
@@ -392,6 +394,33 @@ CREATE TABLE visit_reports (
     finalised_at TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
+);
+
+-- ============================================================================
+-- TMF (TRIAL MASTER FILE) TABLES
+-- ============================================================================
+
+CREATE TABLE tmf_requirements (
+    requirement_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_type TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('Regulatory','Staff','Consent','IP','Safety','Lab')),
+    is_mandatory INTEGER DEFAULT 1,
+    validity_months INTEGER
+);
+
+CREATE TABLE tmf_documents (
+    document_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL REFERENCES sites(site_id),
+    document_type TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('Regulatory','Staff','Consent','IP','Safety','Lab')),
+    title TEXT NOT NULL,
+    version TEXT,
+    file_path TEXT,
+    document_date TEXT,
+    expiry_date TEXT,
+    status TEXT NOT NULL DEFAULT 'Present' CHECK (status IN ('Present','Missing','Expiring','Superseded')),
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
 );
 
 -- ============================================================================

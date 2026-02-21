@@ -971,6 +971,389 @@ cur.execute("""
 conn.commit()
 print("✓ CTMS monitoring visit data seeded (Site 101: 3 visits, 5 findings, 2 reports)")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CTMS Synthetic Data — Sites 102-105
+# ─────────────────────────────────────────────────────────────────────────────
+
+# --- Site 102: London Oncology Institute — HIGH RISK ---
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (4, '102', 'IMV', 'IMV-1', '2024-09-10', '2024-09-10',
+        'David Park', 'Completed',
+        '["Review first 10 subjects SDV","Verify ICF version 1.0 signatures","Review AE documentation","Confirm lab certification is current"]',
+        1, 1)
+""")
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (5, '102', 'IMV', 'IMV-2', '2025-02-04', '2025-02-04',
+        'David Park', 'Completed',
+        '["Follow up on IMV-1 action items","Verify ICF re-consent for amendment v2.1","Review haematology data entry","Confirm randomisation date source documents","SDV subjects 102-011 to 102-022"]',
+        1, 1)
+""")
+
+imv5_findings = [
+    (5, '102-003', 'Protocol Deviation',
+     'ICF re-consent not obtained following protocol amendment v2.1 (issued 2024-11-15). Subject continued on study without updated consent.',
+     'Critical', 'Dr. James Harrison', '2025-02-18', 'Open', None),
+    (5, '102-007', 'Protocol Deviation',
+     'ICF re-consent not obtained following protocol amendment v2.1 (issued 2024-11-15). Subject continued on study without updated consent.',
+     'Critical', 'Dr. James Harrison', '2025-02-18', 'Open', None),
+    (5, '102-011', 'Protocol Deviation',
+     'ICF re-consent not obtained following protocol amendment v2.1 (issued 2024-11-15). Subject continued on study without updated consent.',
+     'Critical', 'Dr. James Harrison', '2025-02-18', 'Open', None),
+    (5, '102-014', 'Query',
+     'Haematology results at Week 6 visit missing from EDC. Source confirms labs were collected 2024-12-19 but not entered.',
+     'Major', 'Dr. James Harrison', '2025-02-18', 'Open', None),
+    (5, '102-019', 'SDV Finding',
+     'Randomisation date recorded in EDC (2024-10-22) does not match source document (2024-10-21). Requires data correction and PI countersignature.',
+     'Major', 'Dr. James Harrison', '2025-02-18', 'Open', None),
+]
+imv4_findings = [
+    (4, '102-001', 'Query',
+     'Subject weight transcription error at baseline: source=72.3kg, EDC=27.3kg. Corrected and PI countersigned.',
+     'Major', 'Dr. James Harrison', '2024-09-24', 'Resolved', '2024-09-20'),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv5_findings + imv4_findings)
+
+imv4_report = """# Monitoring Visit Report — IMV-1
+
+**Site:** 102 — London Oncology Institute, London, United Kingdom
+**Visit Date:** 2024-09-10
+**Visit Type:** IMV (IMV-1)
+**CRA:** David Park
+**Principal Investigator:** Dr. James Harrison
+**Report Generated:** 2024-09-12
+
+---
+
+## 1. Visit Summary
+Site 102 is performing well overall. 1 minor transcription error identified and resolved at visit.
+SDV of first 10 subjects completed. No safety concerns identified.
+
+**Subjects reviewed:** 10
+**Total findings:** 1 (0 Critical, 1 Major, 0 Minor)
+**Open findings:** 0 | **Resolved at visit:** 1
+
+---
+
+## 2. Next Steps
+- Continue SDV per monitoring plan
+- ICF amendment v2.1 to be distributed when approved — site to re-consent all active subjects
+
+*Report finalised: 12 September 2024*
+"""
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (4, 'Finalised', ?, 'All items discussed with PI. Site in good standing.', '2024-09-12')
+""", (imv4_report,))
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (5, 'Draft', ?, NULL, NULL)
+""", ("# Monitoring Visit Report — IMV-2\n\n**DRAFT — Pending CRA Review**\n\nSite 102 has 3 critical findings related to ICF re-consent failure following protocol amendment v2.1. Immediate corrective action required. PI to initiate re-consent for subjects 102-003, 102-007, 102-011 within 5 business days.",))
+
+conn.commit()
+print("✓ Site 102 CTMS data seeded (2 visits, 6 findings)")
+
+# --- Site 103: Toronto Research Hospital — MEDIUM RISK ---
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (6, '103', 'IMV', 'IMV-1', '2024-08-20', '2024-08-20',
+        'Sarah Mitchell', 'Completed',
+        '["SDV first 10 subjects","Verify ICF signatures","Review AE documentation","Check visit window compliance"]',
+        1, 1)
+""")
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (7, '103', 'IMV', 'IMV-2', '2024-12-03', '2024-12-03',
+        'Sarah Mitchell', 'Completed',
+        '["Follow up IMV-1 actions","SDV subjects 103-011 to 103-020","Close open AE grade query","Verify vital signs countersignature","Review recruitment rate"]',
+        1, 1)
+""")
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (8, '103', 'IMV', 'IMV-3', '2025-04-08', NULL,
+        'Sarah Mitchell', 'Planned', NULL, 0, 0)
+""")
+
+imv7_findings = [
+    (7, '103-005', 'Query',
+     'AE term "nausea" recorded but CTCAE grade not specified in source document. Grade must be documented per protocol Section 7.3.',
+     'Minor', 'Dr. Priya Sharma', '2025-01-07', 'Open', None),
+    (7, '103-012', 'Action Item',
+     'SDV for visits 2 and 3 outstanding. To be completed at IMV-3 per monitoring plan.',
+     'Minor', 'Dr. Priya Sharma', '2025-04-08', 'Open', None),
+    (7, '103-008', 'SDV Finding',
+     'Vital signs at Week 9 recorded in paper source but visit was conducted by nurse practitioner without PI countersignature. PI countersignature obtained at visit.',
+     'Major', 'Dr. Priya Sharma', '2024-12-17', 'Resolved', '2024-12-15'),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv7_findings)
+
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (6, 'Finalised', ?, 'Clean visit. Site performing well.', '2024-08-22')
+""", ("# Monitoring Visit Report — IMV-1\n\n**Site:** 103 — Toronto Research Hospital, Toronto, Canada\n**Visit Date:** 2024-08-20\n**CRA:** Sarah Mitchell\n\nClean visit. SDV of 10 subjects completed. No significant findings. Site 103 is well-organised with strong PI engagement.\n\n*Finalised: 22 August 2024*",))
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (7, 'Finalised', ?, 'Two minor open items to follow up at IMV-3. Site performing well overall.', '2024-12-05')
+""", ("# Monitoring Visit Report — IMV-2\n\n**Site:** 103 — Toronto Research Hospital, Toronto, Canada\n**Visit Date:** 2024-12-03\n**CRA:** Sarah Mitchell\n\n1 Major finding resolved at visit. 2 minor open items carried forward to IMV-3 (AE grade documentation, SDV completion).\n\n*Finalised: 05 December 2024*",))
+
+conn.commit()
+print("✓ Site 103 CTMS data seeded (3 visits, 3 findings)")
+
+# --- Site 104: Sydney Cancer Center — LOW RISK ---
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (9, '104', 'IMV', 'IMV-1', '2024-10-22', '2024-10-22',
+        'Sarah Mitchell', 'Completed',
+        '["SDV first 10 subjects","Review ICF signatures","Check AE documentation","Verify concomitant medication records"]',
+        1, 1)
+""")
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (10, '104', 'IMV', 'IMV-2', '2025-01-28', '2025-01-28',
+        'Sarah Mitchell', 'Completed',
+        '["Follow up IMV-1 items","SDV subjects 104-011 to 104-018","Verify lab results transcription","Review tumour assessment records"]',
+        1, 1)
+""")
+
+imv10_findings = [
+    (10, '104-002', 'Query',
+     'Concomitant medication start date missing for Pantoprazole. Source confirms 2024-09-10. Corrected and PI countersigned at visit.',
+     'Minor', 'Dr. David O\'Connor', '2025-02-04', 'Resolved', '2025-01-28'),
+    (10, '104-009', 'SDV Finding',
+     'Week 5 lab results: ALT and AST values transposed in EDC transcription. Source: ALT=32 U/L, AST=28 U/L. Corrected and PI countersigned.',
+     'Minor', 'Dr. David O\'Connor', '2025-02-04', 'Resolved', '2025-01-28'),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv10_findings)
+
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (9, 'Finalised', ?, 'Excellent visit. Site 104 is a model site.', '2024-10-24')
+""", ("# Monitoring Visit Report — IMV-1\n\n**Site:** 104 — Sydney Cancer Center, Sydney, Australia\n**Visit Date:** 2024-10-22\n**CRA:** Sarah Mitchell\n\nExcellent first IMV. No significant findings. All SDV complete. Site 104 demonstrates excellent data quality practices.\n\n*Finalised: 24 October 2024*",))
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (10, 'Finalised', ?, '2 minor findings both resolved at visit. Site 104 remains in excellent standing.', '2025-01-30')
+""", ("# Monitoring Visit Report — IMV-2\n\n**Site:** 104 — Sydney Cancer Center, Sydney, Australia\n**Visit Date:** 2025-01-28\n**CRA:** Sarah Mitchell\n\n2 minor findings identified and resolved at visit. No open issues. All SDV complete. Site performing to highest standards.\n\n*Finalised: 30 January 2025*",))
+
+conn.commit()
+print("✓ Site 104 CTMS data seeded (2 visits, 2 findings — all resolved)")
+
+# --- Site 105: Singapore Medical Research — HIGH RISK ---
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (11, '105', 'IMV', 'IMV-1', '2024-11-12', '2024-11-12',
+        'David Park', 'Completed',
+        '["SDV first 8 subjects","Verify screening ECG documentation","Review randomisation procedures","Check ECOG assessment documentation","Confirm tumour assessment upload"]',
+        1, 1)
+""")
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (12, '105', 'IMV', 'IMV-2', '2025-03-18', NULL,
+        'David Park', 'Planned', NULL, 0, 0)
+""")
+
+imv11_findings = [
+    (11, '105-001', 'Protocol Deviation',
+     'Screening ECG not performed within the required 7-day window prior to randomisation. ECG performed 11 days before randomisation (protocol window: 7 days per Section 5.2.1).',
+     'Major', 'Dr. Wei Zhang', '2025-01-12', 'Open', None),
+    (11, '105-004', 'Query',
+     'Baseline tumour assessment CT scan report not uploaded to EDC. Radiologist confirms scan completed 2024-09-30 but report is absent from site file.',
+     'Major', 'Dr. Wei Zhang', '2025-01-12', 'Open', None),
+    (11, '105-007', 'Query',
+     'ECOG performance status recorded as 0 at screening in EDC but treating physician notes indicate ECOG 1. Source verification required.',
+     'Minor', 'Dr. Wei Zhang', '2025-01-12', 'Open', None),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv11_findings)
+
+cur.execute("""
+    INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (11, 'CRA Reviewed', ?, 'Reviewed by David Park. 3 open findings require urgent site follow-up before IMV-2.', NULL)
+""", ("# Monitoring Visit Report — IMV-1\n\n**Site:** 105 — Singapore Medical Research, Singapore\n**Visit Date:** 2024-11-12\n**CRA:** David Park\n\nFirst IMV identified 3 open findings (2 Major, 1 Minor). Site requires corrective action on ECG window deviation and missing CT scan documentation. ECOG discrepancy to be clarified.\n\n*CRA Reviewed — pending finalisation*",))
+
+conn.commit()
+print("✓ Site 105 CTMS data seeded (2 visits, 3 findings)")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TMF Tables + Seed Data
+# ─────────────────────────────────────────────────────────────────────────────
+
+cur.executescript("""
+CREATE TABLE IF NOT EXISTS tmf_requirements (
+    requirement_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    document_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    is_mandatory INTEGER DEFAULT 1,
+    validity_months INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS tmf_documents (
+    document_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL,
+    document_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    title TEXT NOT NULL,
+    version TEXT,
+    file_path TEXT,
+    document_date TEXT,
+    expiry_date TEXT,
+    status TEXT NOT NULL DEFAULT 'Present',
+    notes TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+""")
+
+# TMF Requirements — study-level mandatory document types
+tmf_reqs = [
+    ('Delegation Log',                  'Staff',      1, None),
+    ('IRB Ethics Approval',             'Regulatory', 1, 12),
+    ('IRB Approval Amendment',          'Regulatory', 1, None),
+    ('ICF Current Version',             'Consent',    1, None),
+    ('Investigator CV',                 'Staff',      1, 24),
+    ('GCP Certificate PI',              'Staff',      1, 24),
+    ('GCP Certificate Coordinator',     'Staff',      1, 24),
+    ('Lab Certification',               'Lab',        1, 12),
+    ('Lab Normal Ranges',               'Lab',        1, 12),
+    ('Drug Accountability Log',         'IP',         1, None),
+    ('SAE Narrative',                   'Safety',     1, None),
+    ('Previous Visit Follow-up Letter', 'Regulatory', 0, None),
+]
+cur.executemany("""
+    INSERT INTO tmf_requirements (document_type, category, is_mandatory, validity_months)
+    VALUES (?, ?, ?, ?)
+""", tmf_reqs)
+
+# TMF Documents per site
+# Status: 'Present' | 'Missing' | 'Expiring' | 'Superseded'
+
+# Site 101 — 10/12 present, 1 Expiring, 1 Missing → score ~83%
+tmf_101 = [
+    ('101','Delegation Log',                  'Staff',      'Site Delegation Log v1.0',         'v1.0', 'tmf_documents/site_101/delegation_log_v1.pdf',   '2024-01-15', None,         'Present',  None),
+    ('101','IRB Ethics Approval',             'Regulatory', 'IRB Initial Approval — NVX-1218.22','v1.0', 'tmf_documents/site_101/irb_approval_2024.pdf',   '2024-01-10', '2025-01-10', 'Present',  None),
+    ('101','IRB Approval Amendment',          'Regulatory', 'IRB Amendment Approval v2.1',       'v2.1', 'tmf_documents/site_101/irb_amendment_v2_1.pdf',  '2024-11-20', None,         'Present',  None),
+    ('101','ICF Current Version',             'Consent',    'Informed Consent Form v2.1',        'v2.1', 'tmf_documents/site_101/icf_v2_1.pdf',            '2024-11-15', None,         'Present',  None),
+    ('101','Investigator CV',                 'Staff',      'CV — Dr. Emily Chen',               'v3.0', 'tmf_documents/site_101/pi_cv.pdf',               '2024-03-01', '2026-03-01', 'Present',  None),
+    ('101','GCP Certificate PI',              'Staff',      'GCP Certificate — Dr. Emily Chen',  '2024', 'tmf_documents/site_101/gcp_cert_pi.pdf',         '2024-02-10', '2026-02-10', 'Present',  None),
+    ('101','GCP Certificate Coordinator',     'Staff',      'GCP Certificate — Jessica Martinez','2024', 'tmf_documents/site_101/gcp_cert_coord.pdf',      '2023-04-01', '2025-04-15', 'Expiring', 'Expires 2025-04-15 — renewal in progress'),
+    ('101','Lab Certification',               'Lab',        'Central Lab Accreditation',         '2024', 'tmf_documents/site_101/lab_certification.pdf',   '2024-06-01', '2025-06-01', 'Present',  None),
+    ('101','Lab Normal Ranges',               'Lab',        'Lab Normal Ranges — NVX-1218.22',   'v2.0', 'tmf_documents/site_101/lab_normal_ranges.pdf',  '2024-06-01', '2025-06-01', 'Present',  None),
+    ('101','Drug Accountability Log',         'IP',         'Drug Accountability Log — Site 101','v1.0', 'tmf_documents/site_101/drug_accountability.pdf', '2024-01-15', None,         'Present',  None),
+    ('101','SAE Narrative',                   'Safety',     'SAE Narrative — Subject 101-901',   'v1.0', 'tmf_documents/site_101/sae_narrative_901.pdf',   '2024-09-15', None,         'Present',  None),
+    ('101','Previous Visit Follow-up Letter', 'Regulatory', 'Follow-up Letter — IMV-2',          None,   None,                                              None,         None,         'Missing',  'Follow-up letter for IMV-2 not yet filed in TMF'),
+]
+
+# Site 102 — 9/12 present, 2 Missing, 1 Superseded → score ~75%
+tmf_102 = [
+    ('102','Delegation Log',                  'Staff',      'Site Delegation Log v1.0',         'v1.0', 'tmf_documents/site_102/delegation_log_v1.pdf',   '2024-02-01', None,         'Present',  None),
+    ('102','IRB Ethics Approval',             'Regulatory', 'IRB Initial Approval — NVX-1218.22','v1.0', 'tmf_documents/site_102/irb_approval_2024.pdf',  '2024-02-05', '2025-02-05', 'Present',  None),
+    ('102','IRB Approval Amendment',          'Regulatory', 'IRB Amendment Approval v2.1',       None,   None,                                             None,         None,         'Missing',  'Amendment v2.1 IRB approval not uploaded — ICF re-consent cannot proceed without this'),
+    ('102','ICF Current Version',             'Consent',    'Informed Consent Form v1.0',        'v1.0', 'tmf_documents/site_102/icf_v1_0.pdf',           '2024-02-01', None,         'Superseded','ICF v2.1 not yet filed — subjects consented on superseded v1.0'),
+    ('102','Investigator CV',                 'Staff',      'CV — Dr. James Harrison',           'v2.0', 'tmf_documents/site_102/pi_cv.pdf',              '2023-09-01', '2025-09-01', 'Present',  None),
+    ('102','GCP Certificate PI',              'Staff',      'GCP Certificate — Dr. James Harrison','2023','tmf_documents/site_102/gcp_cert_pi.pdf',       '2023-07-15', '2025-07-15', 'Present',  None),
+    ('102','GCP Certificate Coordinator',     'Staff',      'GCP Certificate — Sophie Williams', '2024', 'tmf_documents/site_102/gcp_cert_coord.pdf',     '2024-01-20', '2026-01-20', 'Present',  None),
+    ('102','Lab Certification',               'Lab',        'Central Lab Accreditation',         '2024', 'tmf_documents/site_102/lab_certification.pdf',  '2024-06-01', '2025-06-01', 'Present',  None),
+    ('102','Lab Normal Ranges',               'Lab',        'Lab Normal Ranges — NVX-1218.22',   'v2.0', 'tmf_documents/site_102/lab_normal_ranges.pdf', '2024-06-01', '2025-06-01', 'Present',  None),
+    ('102','Drug Accountability Log',         'IP',         'Drug Accountability Log — Site 102','v1.0', 'tmf_documents/site_102/drug_accountability.pdf','2024-02-01', None,         'Present',  None),
+    ('102','SAE Narrative',                   'Safety',     'SAE Narrative — Not Required',      None,   None,                                             None,         None,         'Missing',  'No SAEs reported at this site — not applicable'),
+    ('102','Previous Visit Follow-up Letter', 'Regulatory', 'Follow-up Letter — IMV-1',          None,   'tmf_documents/site_102/followup_imv1.pdf',       '2024-09-14', None,         'Present',  None),
+]
+
+# Site 103 — 11/12 present, 1 Expiring → score ~92%
+tmf_103 = [
+    ('103','Delegation Log',                  'Staff',      'Site Delegation Log v1.0',         'v1.0', 'tmf_documents/site_103/delegation_log_v1.pdf',   '2024-01-20', None,         'Present',  None),
+    ('103','IRB Ethics Approval',             'Regulatory', 'IRB Initial Approval — NVX-1218.22','v1.0', 'tmf_documents/site_103/irb_approval_2024.pdf',  '2024-01-18', '2025-01-18', 'Present',  None),
+    ('103','IRB Approval Amendment',          'Regulatory', 'IRB Amendment Approval v2.1',       'v2.1', 'tmf_documents/site_103/irb_amendment_v2_1.pdf', '2024-12-01', None,         'Present',  None),
+    ('103','ICF Current Version',             'Consent',    'Informed Consent Form v2.1',        'v2.1', 'tmf_documents/site_103/icf_v2_1.pdf',           '2024-12-01', None,         'Present',  None),
+    ('103','Investigator CV',                 'Staff',      'CV — Dr. Priya Sharma',             'v2.0', 'tmf_documents/site_103/pi_cv.pdf',              '2023-06-01', '2025-06-01', 'Expiring', 'CV expires 2025-06-01 — request updated CV at IMV-3'),
+    ('103','GCP Certificate PI',              'Staff',      'GCP Certificate — Dr. Priya Sharma','2024', 'tmf_documents/site_103/gcp_cert_pi.pdf',        '2024-04-10', '2026-04-10', 'Present',  None),
+    ('103','GCP Certificate Coordinator',     'Staff',      'GCP Certificate — Michael Wong',    '2023', 'tmf_documents/site_103/gcp_cert_coord.pdf',     '2023-11-01', '2025-11-01', 'Present',  None),
+    ('103','Lab Certification',               'Lab',        'Central Lab Accreditation',         '2024', 'tmf_documents/site_103/lab_certification.pdf',  '2024-06-01', '2025-06-01', 'Present',  None),
+    ('103','Lab Normal Ranges',               'Lab',        'Lab Normal Ranges — NVX-1218.22',   'v2.0', 'tmf_documents/site_103/lab_normal_ranges.pdf', '2024-06-01', '2025-06-01', 'Present',  None),
+    ('103','Drug Accountability Log',         'IP',         'Drug Accountability Log — Site 103','v1.0', 'tmf_documents/site_103/drug_accountability.pdf','2024-01-20', None,         'Present',  None),
+    ('103','SAE Narrative',                   'Safety',     'SAE Narrative — Not Required',      None,   None,                                             None,         None,         'Missing',  'No SAEs at this site'),
+    ('103','Previous Visit Follow-up Letter', 'Regulatory', 'Follow-up Letter — IMV-2',          None,   'tmf_documents/site_103/followup_imv2.pdf',       '2024-12-06', None,         'Present',  None),
+]
+
+# Site 104 — 12/12 present, all current → score 100%
+tmf_104 = [
+    ('104','Delegation Log',                  'Staff',      'Site Delegation Log v1.0',         'v1.0', 'tmf_documents/site_104/delegation_log_v1.pdf',   '2024-03-01', None,         'Present',  None),
+    ('104','IRB Ethics Approval',             'Regulatory', 'IRB Initial Approval — NVX-1218.22','v1.0', 'tmf_documents/site_104/irb_approval_2024.pdf',  '2024-03-05', '2025-03-05', 'Present',  None),
+    ('104','IRB Approval Amendment',          'Regulatory', 'IRB Amendment Approval v2.1',       'v2.1', 'tmf_documents/site_104/irb_amendment_v2_1.pdf', '2024-12-10', None,         'Present',  None),
+    ('104','ICF Current Version',             'Consent',    'Informed Consent Form v2.1',        'v2.1', 'tmf_documents/site_104/icf_v2_1.pdf',           '2024-12-10', None,         'Present',  None),
+    ('104','Investigator CV',                 'Staff',      "CV — Dr. David O'Connor",           'v3.0', 'tmf_documents/site_104/pi_cv.pdf',              '2024-05-01', '2026-05-01', 'Present',  None),
+    ('104','GCP Certificate PI',              'Staff',      "GCP Certificate — Dr. David O'Connor",'2024','tmf_documents/site_104/gcp_cert_pi.pdf',       '2024-05-15', '2026-05-15', 'Present',  None),
+    ('104','GCP Certificate Coordinator',     'Staff',      'GCP Certificate — Emma Thompson',   '2024', 'tmf_documents/site_104/gcp_cert_coord.pdf',     '2024-03-20', '2026-03-20', 'Present',  None),
+    ('104','Lab Certification',               'Lab',        'Central Lab Accreditation',         '2024', 'tmf_documents/site_104/lab_certification.pdf',  '2024-06-01', '2025-06-01', 'Present',  None),
+    ('104','Lab Normal Ranges',               'Lab',        'Lab Normal Ranges — NVX-1218.22',   'v2.0', 'tmf_documents/site_104/lab_normal_ranges.pdf', '2024-06-01', '2025-06-01', 'Present',  None),
+    ('104','Drug Accountability Log',         'IP',         'Drug Accountability Log — Site 104','v1.0', 'tmf_documents/site_104/drug_accountability.pdf','2024-03-01', None,         'Present',  None),
+    ('104','SAE Narrative',                   'Safety',     'SAE Narrative — Not Required',      None,   None,                                             None,         None,         'Missing',  'No SAEs at this site'),
+    ('104','Previous Visit Follow-up Letter', 'Regulatory', 'Follow-up Letter — IMV-2',          None,   'tmf_documents/site_104/followup_imv2.pdf',       '2025-01-30', None,         'Present',  None),
+]
+
+# Site 105 — 8/12 present, 2 Missing, 1 Expiring, 1 Superseded → score ~67%
+tmf_105 = [
+    ('105','Delegation Log',                  'Staff',      'Site Delegation Log v1.0',         'v1.0', 'tmf_documents/site_105/delegation_log_v1.pdf',   '2024-04-01', None,         'Present',  None),
+    ('105','IRB Ethics Approval',             'Regulatory', 'IRB Initial Approval — NVX-1218.22','v1.0', 'tmf_documents/site_105/irb_approval_2024.pdf',  '2024-04-05', '2025-04-05', 'Expiring', 'Renewal due 2025-04-05 — submit renewal application immediately'),
+    ('105','IRB Approval Amendment',          'Regulatory', 'IRB Amendment Approval v2.1',       'v2.1', 'tmf_documents/site_105/irb_amendment_v2_1.pdf', '2024-12-20', None,         'Present',  None),
+    ('105','ICF Current Version',             'Consent',    'Informed Consent Form v1.0',        'v1.0', 'tmf_documents/site_105/icf_v1_0.pdf',           '2024-04-01', None,         'Superseded','ICF v2.1 not filed — subjects to be re-consented'),
+    ('105','Investigator CV',                 'Staff',      'CV — Dr. Wei Zhang',                'v2.0', 'tmf_documents/site_105/pi_cv.pdf',              '2024-01-15', '2026-01-15', 'Present',  None),
+    ('105','GCP Certificate PI',              'Staff',      'GCP Certificate — Dr. Wei Zhang',   '2023', 'tmf_documents/site_105/gcp_cert_pi.pdf',        '2023-08-10', '2025-08-10', 'Present',  None),
+    ('105','GCP Certificate Coordinator',     'Staff',      'GCP Certificate — Lisa Tan',        '2024', 'tmf_documents/site_105/gcp_cert_coord.pdf',     '2024-02-28', '2026-02-28', 'Present',  None),
+    ('105','Lab Certification',               'Lab',        'Central Lab Accreditation',         None,   None,                                             None,         None,         'Missing',  'Lab certification not uploaded — required before next subject visit'),
+    ('105','Lab Normal Ranges',               'Lab',        'Lab Normal Ranges — NVX-1218.22',   'v2.0', 'tmf_documents/site_105/lab_normal_ranges.pdf', '2024-06-01', '2025-06-01', 'Present',  None),
+    ('105','Drug Accountability Log',         'IP',         'Drug Accountability Log — Site 105',None,   None,                                             None,         None,         'Missing',  'Drug accountability log not filed — critical gap requiring immediate action'),
+    ('105','SAE Narrative',                   'Safety',     'SAE Narrative — Not Required',      None,   None,                                             None,         None,         'Missing',  'No SAEs at this site'),
+    ('105','Previous Visit Follow-up Letter', 'Regulatory', 'Follow-up Letter — IMV-1',          None,   'tmf_documents/site_105/followup_imv1.pdf',       '2024-11-14', None,         'Present',  None),
+]
+
+all_tmf = tmf_101 + tmf_102 + tmf_103 + tmf_104 + tmf_105
+cur.executemany("""
+    INSERT INTO tmf_documents
+        (site_id, document_type, category, title, version, file_path,
+         document_date, expiry_date, status, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", all_tmf)
+
+conn.commit()
+print("✓ TMF requirements and documents seeded (5 sites, 60 document records)")
+
 # Get statistics
 print("\n5. Database Statistics:")
 tables = [
@@ -978,7 +1361,8 @@ tables = [
     'laboratory_results', 'adverse_events', 'medical_history',
     'concomitant_medications', 'tumor_assessments', 'ecg_results',
     'protocol_deviations', 'queries',
-    'monitoring_visits', 'monitoring_visit_subjects', 'visit_findings', 'visit_reports'
+    'monitoring_visits', 'monitoring_visit_subjects', 'visit_findings', 'visit_reports',
+    'tmf_requirements', 'tmf_documents'
 ]
 
 total_records = 0
