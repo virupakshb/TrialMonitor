@@ -1412,29 +1412,26 @@ def get_all_violations(
 @app.get("/api/ctms/site/{site_id}")
 def get_ctms_site(site_id: str):
     """Get site details + monitoring visit timeline for a site."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM sites WHERE site_id = ?", (site_id,))
-    site = cur.fetchone()
-    if not site:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Site not found")
-    site_data = dict(zip([d[0] for d in cur.description], site))
-
-    cur.execute("""
-        SELECT mv.*,
-               (SELECT COUNT(*) FROM monitoring_visit_subjects mvs WHERE mvs.monitoring_visit_id = mv.monitoring_visit_id) as subject_count,
-               (SELECT COUNT(*) FROM visit_findings vf WHERE vf.monitoring_visit_id = mv.monitoring_visit_id AND vf.status = 'Open') as open_findings,
-               (SELECT report_status FROM visit_reports vr WHERE vr.monitoring_visit_id = mv.monitoring_visit_id LIMIT 1) as report_status
-        FROM monitoring_visits mv
-        WHERE mv.site_id = ?
-        ORDER BY mv.planned_date ASC
-    """, (site_id,))
-    cols = [d[0] for d in cur.description]
-    visits = [dict(zip(cols, r)) for r in cur.fetchall()]
-
-    # Parse visit_objectives JSON
     import json as _json
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM sites WHERE site_id = ?", (site_id,))
+        site = cur.fetchone()
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
+        site_data = dict_from_row(site)
+
+        cur.execute("""
+            SELECT mv.*,
+                   (SELECT COUNT(*) FROM monitoring_visit_subjects mvs WHERE mvs.monitoring_visit_id = mv.monitoring_visit_id) as subject_count,
+                   (SELECT COUNT(*) FROM visit_findings vf WHERE vf.monitoring_visit_id = mv.monitoring_visit_id AND vf.status = 'Open') as open_findings,
+                   (SELECT report_status FROM visit_reports vr WHERE vr.monitoring_visit_id = mv.monitoring_visit_id LIMIT 1) as report_status
+            FROM monitoring_visits mv
+            WHERE mv.site_id = ?
+            ORDER BY mv.planned_date ASC
+        """, (site_id,))
+        visits = [dict_from_row(r) for r in cur.fetchall()]
+
     for v in visits:
         if v.get('visit_objectives'):
             try:
@@ -1442,53 +1439,50 @@ def get_ctms_site(site_id: str):
             except Exception:
                 pass
 
-    conn.close()
     return {"site": site_data, "monitoring_visits": visits}
 
 
 @app.get("/api/ctms/monitoring-visits/{monitoring_visit_id}")
 def get_monitoring_visit(monitoring_visit_id: int):
     """Get full detail for one monitoring visit including subjects, findings, report."""
-    conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("SELECT * FROM monitoring_visits WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Monitoring visit not found")
-    visit = dict(zip([d[0] for d in cur.description], row))
-
     import json as _json
-    if visit.get('visit_objectives'):
-        try:
-            visit['visit_objectives'] = _json.loads(visit['visit_objectives'])
-        except Exception:
-            pass
+    with get_db() as conn:
+        cur = conn.cursor()
 
-    # Subjects
-    cur.execute("""
-        SELECT mvs.*, s.study_status, s.treatment_arm_name
-        FROM monitoring_visit_subjects mvs
-        JOIN subjects s ON s.subject_id = mvs.subject_id
-        WHERE mvs.monitoring_visit_id = ?
-        ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
-    """, (monitoring_visit_id,))
-    subjects = [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
+        cur.execute("SELECT * FROM monitoring_visits WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitoring visit not found")
+        visit = dict_from_row(row)
 
-    # Findings
-    cur.execute("""
-        SELECT * FROM visit_findings WHERE monitoring_visit_id = ?
-        ORDER BY CASE severity WHEN 'Critical' THEN 1 WHEN 'Major' THEN 2 ELSE 3 END, created_at
-    """, (monitoring_visit_id,))
-    findings = [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
+        if visit.get('visit_objectives'):
+            try:
+                visit['visit_objectives'] = _json.loads(visit['visit_objectives'])
+            except Exception:
+                pass
 
-    # Report
-    cur.execute("SELECT * FROM visit_reports WHERE monitoring_visit_id = ? LIMIT 1", (monitoring_visit_id,))
-    row = cur.fetchone()
-    report = dict(zip([d[0] for d in cur.description], row)) if row else None
+        # Subjects
+        cur.execute("""
+            SELECT mvs.*, s.study_status, s.treatment_arm_name
+            FROM monitoring_visit_subjects mvs
+            JOIN subjects s ON s.subject_id = mvs.subject_id
+            WHERE mvs.monitoring_visit_id = ?
+            ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
+        """, (monitoring_visit_id,))
+        subjects = [dict_from_row(r) for r in cur.fetchall()]
 
-    conn.close()
+        # Findings
+        cur.execute("""
+            SELECT * FROM visit_findings WHERE monitoring_visit_id = ?
+            ORDER BY CASE severity WHEN 'Critical' THEN 1 WHEN 'Major' THEN 2 ELSE 3 END, created_at
+        """, (monitoring_visit_id,))
+        findings = [dict_from_row(r) for r in cur.fetchall()]
+
+        # Report
+        cur.execute("SELECT * FROM visit_reports WHERE monitoring_visit_id = ? LIMIT 1", (monitoring_visit_id,))
+        row = cur.fetchone()
+        report = dict_from_row(row) if row else None
+
     return {
         "visit": visit,
         "subjects": subjects,
@@ -1500,18 +1494,16 @@ def get_monitoring_visit(monitoring_visit_id: int):
 @app.put("/api/ctms/monitoring-visits/{monitoring_visit_id}/confirm")
 def confirm_monitoring_visit(monitoring_visit_id: int):
     """CRA confirms the visit date — status moves from Planned to Confirmed."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE monitoring_visits
-        SET status = 'Confirmed', updated_at = datetime('now')
-        WHERE monitoring_visit_id = ? AND status = 'Planned'
-    """, (monitoring_visit_id,))
-    if cur.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=400, detail="Visit not in Planned status or not found")
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE monitoring_visits
+            SET status = 'Confirmed', updated_at = datetime('now')
+            WHERE monitoring_visit_id = ? AND status = 'Planned'
+        """, (monitoring_visit_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(status_code=400, detail="Visit not in Planned status or not found")
+        conn.commit()
     return {"success": True, "status": "Confirmed"}
 
 
@@ -1522,138 +1514,137 @@ def generate_visit_prep(monitoring_visit_id: int):
     Reviews open queries, deviations, AEs, violations for site 101 subjects
     and assigns High/Medium/Low priority with reasons. No LLM used (cost-conscious).
     """
-    conn = get_db()
-    cur = conn.cursor()
-
-    # Get the monitoring visit
-    cur.execute("SELECT * FROM monitoring_visits WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Monitoring visit not found")
-    visit = dict(zip([d[0] for d in cur.description], row))
-    site_id = visit['site_id']
-
-    # Get all subjects at this site
-    cur.execute("SELECT subject_id, study_status FROM subjects WHERE site_id = ?", (site_id,))
-    all_subjects = cur.fetchall()
-
-    # Clear existing subject assignments for this visit
-    cur.execute("DELETE FROM monitoring_visit_subjects WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
-
-    subject_rows = []
-    for (subject_id, study_status) in all_subjects:
-        # Count open queries
-        cur.execute("SELECT COUNT(*) FROM queries WHERE subject_id = ? AND query_status = 'Open'", (subject_id,))
-        open_queries = cur.fetchone()[0]
-
-        # Count queries open > 14 days
-        cur.execute("""
-            SELECT COUNT(*) FROM queries
-            WHERE subject_id = ? AND query_status = 'Open'
-            AND julianday('now') - julianday(query_date) > 14
-        """, (subject_id,))
-        aged_queries = cur.fetchone()[0]
-
-        # Count open deviations
-        cur.execute("SELECT COUNT(*) FROM protocol_deviations WHERE subject_id = ? AND status = 'Open'", (subject_id,))
-        open_devs = cur.fetchone()[0]
-
-        # Count serious AEs
-        cur.execute("SELECT COUNT(*) FROM adverse_events WHERE subject_id = ? AND seriousness = 'Yes' AND (ongoing = 1 OR resolution_date IS NULL)", (subject_id,))
-        serious_aes = cur.fetchone()[0]
-
-        # Count Grade 3+ AEs
-        cur.execute("SELECT COUNT(*) FROM adverse_events WHERE subject_id = ? AND ctcae_grade >= 3 AND (ongoing = 1 OR resolution_date IS NULL)", (subject_id,))
-        high_grade_aes = cur.fetchone()[0]
-
-        # Missed visits
-        cur.execute("SELECT COUNT(*) FROM visits WHERE subject_id = ? AND missed_visit = 1", (subject_id,))
-        missed = cur.fetchone()[0]
-
-        # Assign priority
-        reasons = []
-        if serious_aes > 0:
-            reasons.append(f"{serious_aes} ongoing serious AE(s) requiring SAE documentation review")
-        if high_grade_aes > 0:
-            reasons.append(f"{high_grade_aes} Grade 3+ adverse event(s) ongoing")
-        if open_devs > 0:
-            reasons.append(f"{open_devs} open protocol deviation(s)")
-        if aged_queries > 0:
-            reasons.append(f"{aged_queries} query/queries open >14 days")
-        if open_queries > 0 and aged_queries == 0:
-            reasons.append(f"{open_queries} open query/queries")
-        if missed > 0:
-            reasons.append(f"{missed} missed visit(s)")
-
-        if serious_aes > 0 or open_devs > 0 or high_grade_aes > 0:
-            priority = 'High'
-        elif aged_queries > 0 or open_queries > 1 or missed > 0:
-            priority = 'Medium'
-        else:
-            priority = 'Low'
-
-        priority_reason = '; '.join(reasons) if reasons else 'No active issues — routine SDV review'
-
-        # Rough SDV percent (simulate based on subject number)
-        import hashlib
-        h = int(hashlib.md5(subject_id.encode()).hexdigest(), 16) % 5
-        sdv_map = {0: 100, 1: 100, 2: 85, 3: 75, 4: 60}
-        sdv_pct = sdv_map[h]
-        sdv_status = 'Complete' if sdv_pct == 100 else ('In Progress' if sdv_pct >= 75 else 'Not Started')
-
-        subject_rows.append((monitoring_visit_id, subject_id, sdv_status, sdv_pct, priority, priority_reason))
-
-    cur.executemany("""
-        INSERT INTO monitoring_visit_subjects
-            (monitoring_visit_id, subject_id, sdv_status, sdv_percent, priority, priority_reason)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, subject_rows)
-
-    # Generate objectives based on site data
-    cur.execute("SELECT COUNT(*) FROM queries WHERE subject_id LIKE ? AND query_status = 'Open'", (f'{site_id}-%',))
-    total_open_q = cur.fetchone()[0]
-    cur.execute("""
-        SELECT COUNT(*) FROM queries WHERE subject_id LIKE ? AND query_status = 'Open'
-        AND julianday('now') - julianday(query_date) > 14
-    """, (f'{site_id}-%',))
-    total_aged_q = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM protocol_deviations WHERE subject_id LIKE ? AND status = 'Open'", (f'{site_id}-%',))
-    total_devs = cur.fetchone()[0]
-    high_priority = [r for r in subject_rows if r[4] == 'High']
-    medium_priority = [r for r in subject_rows if r[4] == 'Medium']
-    not_started_sdv = [r for r in subject_rows if r[2] == 'Not Started']
-
     import json as _json
-    objectives = [f"Priority review: {len(high_priority)} high-priority subject(s) with active safety concerns"]
-    if total_open_q > 0:
-        objectives.append(f"Close {total_open_q} open quer{'y' if total_open_q == 1 else 'ies'} ({total_aged_q} aged >14 days)")
-    if total_devs > 0:
-        objectives.append(f"Review and close {total_devs} open protocol deviation(s)")
-    if not_started_sdv:
-        objectives.append(f"Complete SDV for {len(not_started_sdv)} subject(s) with 0% SDV")
-    if medium_priority:
-        objectives.append(f"Follow up on {len(medium_priority)} medium-priority subject(s)")
-    objectives.append("Verify ICF signatures for any newly consented subjects")
-    objectives.append("Review corrective actions from previous visit findings")
+    import hashlib
 
-    cur.execute("""
-        UPDATE monitoring_visits
-        SET prep_generated = 1, visit_objectives = ?, updated_at = datetime('now')
-        WHERE monitoring_visit_id = ?
-    """, (_json.dumps(objectives), monitoring_visit_id))
+    with get_db() as conn:
+        cur = conn.cursor()
 
-    conn.commit()
+        # Get the monitoring visit
+        cur.execute("SELECT * FROM monitoring_visits WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Monitoring visit not found")
+        visit = dict_from_row(row)
+        site_id = visit['site_id']
 
-    # Return full prep data
-    cur.execute("""
-        SELECT mvs.*, s.study_status FROM monitoring_visit_subjects mvs
-        JOIN subjects s ON s.subject_id = mvs.subject_id
-        WHERE mvs.monitoring_visit_id = ?
-        ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
-    """, (monitoring_visit_id,))
-    subjects_out = [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
-    conn.close()
+        # Get all subjects at this site
+        cur.execute("SELECT subject_id, study_status FROM subjects WHERE site_id = ?", (site_id,))
+        all_subjects = cur.fetchall()
+
+        # Clear existing subject assignments for this visit
+        cur.execute("DELETE FROM monitoring_visit_subjects WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
+
+        subject_rows = []
+        for (subject_id, study_status) in all_subjects:
+            # Count open queries
+            cur.execute("SELECT COUNT(*) FROM queries WHERE subject_id = ? AND query_status = 'Open'", (subject_id,))
+            open_queries = cur.fetchone()[0]
+
+            # Count queries open > 14 days
+            cur.execute("""
+                SELECT COUNT(*) FROM queries
+                WHERE subject_id = ? AND query_status = 'Open'
+                AND julianday('now') - julianday(query_date) > 14
+            """, (subject_id,))
+            aged_queries = cur.fetchone()[0]
+
+            # Count open deviations
+            cur.execute("SELECT COUNT(*) FROM protocol_deviations WHERE subject_id = ? AND status = 'Open'", (subject_id,))
+            open_devs = cur.fetchone()[0]
+
+            # Count serious AEs
+            cur.execute("SELECT COUNT(*) FROM adverse_events WHERE subject_id = ? AND seriousness = 'Yes' AND (ongoing = 1 OR resolution_date IS NULL)", (subject_id,))
+            serious_aes = cur.fetchone()[0]
+
+            # Count Grade 3+ AEs
+            cur.execute("SELECT COUNT(*) FROM adverse_events WHERE subject_id = ? AND ctcae_grade >= 3 AND (ongoing = 1 OR resolution_date IS NULL)", (subject_id,))
+            high_grade_aes = cur.fetchone()[0]
+
+            # Missed visits
+            cur.execute("SELECT COUNT(*) FROM visits WHERE subject_id = ? AND missed_visit = 1", (subject_id,))
+            missed = cur.fetchone()[0]
+
+            # Assign priority
+            reasons = []
+            if serious_aes > 0:
+                reasons.append(f"{serious_aes} ongoing serious AE(s) requiring SAE documentation review")
+            if high_grade_aes > 0:
+                reasons.append(f"{high_grade_aes} Grade 3+ adverse event(s) ongoing")
+            if open_devs > 0:
+                reasons.append(f"{open_devs} open protocol deviation(s)")
+            if aged_queries > 0:
+                reasons.append(f"{aged_queries} query/queries open >14 days")
+            if open_queries > 0 and aged_queries == 0:
+                reasons.append(f"{open_queries} open query/queries")
+            if missed > 0:
+                reasons.append(f"{missed} missed visit(s)")
+
+            if serious_aes > 0 or open_devs > 0 or high_grade_aes > 0:
+                priority = 'High'
+            elif aged_queries > 0 or open_queries > 1 or missed > 0:
+                priority = 'Medium'
+            else:
+                priority = 'Low'
+
+            priority_reason = '; '.join(reasons) if reasons else 'No active issues — routine SDV review'
+
+            # Rough SDV percent (simulate based on subject number)
+            h = int(hashlib.md5(subject_id.encode()).hexdigest(), 16) % 5
+            sdv_map = {0: 100, 1: 100, 2: 85, 3: 75, 4: 60}
+            sdv_pct = sdv_map[h]
+            sdv_status = 'Complete' if sdv_pct == 100 else ('In Progress' if sdv_pct >= 75 else 'Not Started')
+
+            subject_rows.append((monitoring_visit_id, subject_id, sdv_status, sdv_pct, priority, priority_reason))
+
+        cur.executemany("""
+            INSERT INTO monitoring_visit_subjects
+                (monitoring_visit_id, subject_id, sdv_status, sdv_percent, priority, priority_reason)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, subject_rows)
+
+        # Generate objectives based on site data
+        cur.execute("SELECT COUNT(*) FROM queries WHERE subject_id LIKE ? AND query_status = 'Open'", (f'{site_id}-%',))
+        total_open_q = cur.fetchone()[0]
+        cur.execute("""
+            SELECT COUNT(*) FROM queries WHERE subject_id LIKE ? AND query_status = 'Open'
+            AND julianday('now') - julianday(query_date) > 14
+        """, (f'{site_id}-%',))
+        total_aged_q = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM protocol_deviations WHERE subject_id LIKE ? AND status = 'Open'", (f'{site_id}-%',))
+        total_devs = cur.fetchone()[0]
+        high_priority = [r for r in subject_rows if r[4] == 'High']
+        medium_priority = [r for r in subject_rows if r[4] == 'Medium']
+        not_started_sdv = [r for r in subject_rows if r[2] == 'Not Started']
+
+        objectives = [f"Priority review: {len(high_priority)} high-priority subject(s) with active safety concerns"]
+        if total_open_q > 0:
+            objectives.append(f"Close {total_open_q} open quer{'y' if total_open_q == 1 else 'ies'} ({total_aged_q} aged >14 days)")
+        if total_devs > 0:
+            objectives.append(f"Review and close {total_devs} open protocol deviation(s)")
+        if not_started_sdv:
+            objectives.append(f"Complete SDV for {len(not_started_sdv)} subject(s) with 0% SDV")
+        if medium_priority:
+            objectives.append(f"Follow up on {len(medium_priority)} medium-priority subject(s)")
+        objectives.append("Verify ICF signatures for any newly consented subjects")
+        objectives.append("Review corrective actions from previous visit findings")
+
+        cur.execute("""
+            UPDATE monitoring_visits
+            SET prep_generated = 1, visit_objectives = ?, updated_at = datetime('now')
+            WHERE monitoring_visit_id = ?
+        """, (_json.dumps(objectives), monitoring_visit_id))
+
+        conn.commit()
+
+        # Return full prep data
+        cur.execute("""
+            SELECT mvs.*, s.study_status FROM monitoring_visit_subjects mvs
+            JOIN subjects s ON s.subject_id = mvs.subject_id
+            WHERE mvs.monitoring_visit_id = ?
+            ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
+        """, (monitoring_visit_id,))
+        subjects_out = [dict_from_row(r) for r in cur.fetchall()]
 
     return {
         "success": True,
@@ -1671,70 +1662,66 @@ def generate_visit_prep(monitoring_visit_id: int):
 @app.put("/api/ctms/monitoring-visits/{monitoring_visit_id}/approve-prep")
 def approve_prep(monitoring_visit_id: int):
     """CRA approves the generated prep agenda — locks it."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE monitoring_visits
-        SET prep_approved = 1, status = 'Confirmed', updated_at = datetime('now')
-        WHERE monitoring_visit_id = ?
-    """, (monitoring_visit_id,))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE monitoring_visits
+            SET prep_approved = 1, status = 'Confirmed', updated_at = datetime('now')
+            WHERE monitoring_visit_id = ?
+        """, (monitoring_visit_id,))
+        conn.commit()
     return {"success": True, "prep_approved": True}
 
 
 @app.put("/api/ctms/monitoring-visits/{monitoring_visit_id}/sdv")
 def update_sdv(monitoring_visit_id: int, subject_id: str, sdv_status: str, sdv_percent: int):
     """CRA updates SDV status for a subject during the visit."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE monitoring_visit_subjects
-        SET sdv_status = ?, sdv_percent = ?, updated_at = datetime('now')
-        WHERE monitoring_visit_id = ? AND subject_id = ?
-    """, (sdv_status, sdv_percent, monitoring_visit_id, subject_id))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE monitoring_visit_subjects
+            SET sdv_status = ?, sdv_percent = ?, updated_at = datetime('now')
+            WHERE monitoring_visit_id = ? AND subject_id = ?
+        """, (sdv_status, sdv_percent, monitoring_visit_id, subject_id))
+        conn.commit()
     return {"success": True}
 
 
 @app.post("/api/ctms/monitoring-visits/{monitoring_visit_id}/findings")
 def log_finding(monitoring_visit_id: int, body: dict):
     """CRA logs a finding during the visit."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO visit_findings
-            (monitoring_visit_id, subject_id, finding_type, description, severity,
-             assigned_to, due_date, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Open')
-    """, (
-        monitoring_visit_id,
-        body.get('subject_id'),
-        body.get('finding_type'),
-        body.get('description'),
-        body.get('severity'),
-        body.get('assigned_to'),
-        body.get('due_date')
-    ))
-    finding_id = cur.lastrowid
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO visit_findings
+                (monitoring_visit_id, subject_id, finding_type, description, severity,
+                 assigned_to, due_date, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Open')
+        """, (
+            monitoring_visit_id,
+            body.get('subject_id'),
+            body.get('finding_type'),
+            body.get('description'),
+            body.get('severity'),
+            body.get('assigned_to'),
+            body.get('due_date')
+        ))
+        finding_id = cur.lastrowid
+        conn.commit()
     return {"success": True, "finding_id": finding_id}
 
 
 @app.put("/api/ctms/findings/{finding_id}/resolve")
 def resolve_finding(finding_id: int):
     """Mark a finding as resolved."""
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        UPDATE visit_findings
-        SET status = 'Resolved', resolved_date = date('now')
-        WHERE finding_id = ?
-    """, (finding_id,))
-    conn.commit()
-    conn.close()
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE visit_findings
+            SET status = 'Resolved', resolved_date = date('now')
+            WHERE finding_id = ?
+        """, (finding_id,))
+        conn.commit()
     return {"success": True}
 
 
@@ -1744,68 +1731,68 @@ def generate_visit_report(monitoring_visit_id: int):
     Generate a monitoring visit report draft — deterministic templating, no LLM.
     Builds the report from visit data, findings, and SDV status.
     """
-    conn = get_db()
-    cur = conn.cursor()
     import json as _json
     from datetime import date as _date
 
-    # Visit
-    cur.execute("""
-        SELECT mv.*, s.site_name, s.principal_investigator, s.site_coordinator, s.city, s.state_province
-        FROM monitoring_visits mv JOIN sites s ON s.site_id = mv.site_id
-        WHERE mv.monitoring_visit_id = ?
-    """, (monitoring_visit_id,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Visit not found")
-    v = dict(zip([d[0] for d in cur.description], row))
-    objectives = _json.loads(v['visit_objectives']) if v.get('visit_objectives') else []
+    with get_db() as conn:
+        cur = conn.cursor()
 
-    # Subjects
-    cur.execute("""
-        SELECT mvs.subject_id, mvs.sdv_status, mvs.sdv_percent, mvs.priority, mvs.priority_reason
-        FROM monitoring_visit_subjects mvs
-        WHERE mvs.monitoring_visit_id = ?
-        ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
-    """, (monitoring_visit_id,))
-    subjects = [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
+        # Visit
+        cur.execute("""
+            SELECT mv.*, s.site_name, s.principal_investigator, s.site_coordinator, s.city, s.state_province
+            FROM monitoring_visits mv JOIN sites s ON s.site_id = mv.site_id
+            WHERE mv.monitoring_visit_id = ?
+        """, (monitoring_visit_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Visit not found")
+        v = dict_from_row(row)
+        objectives = _json.loads(v['visit_objectives']) if v.get('visit_objectives') else []
 
-    # Findings
-    cur.execute("""
-        SELECT * FROM visit_findings WHERE monitoring_visit_id = ?
-        ORDER BY CASE severity WHEN 'Critical' THEN 1 WHEN 'Major' THEN 2 ELSE 3 END
-    """, (monitoring_visit_id,))
-    findings = [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
+        # Subjects
+        cur.execute("""
+            SELECT mvs.subject_id, mvs.sdv_status, mvs.sdv_percent, mvs.priority, mvs.priority_reason
+            FROM monitoring_visit_subjects mvs
+            WHERE mvs.monitoring_visit_id = ?
+            ORDER BY CASE mvs.priority WHEN 'High' THEN 1 WHEN 'Medium' THEN 2 ELSE 3 END
+        """, (monitoring_visit_id,))
+        subjects = [dict_from_row(r) for r in cur.fetchall()]
 
-    critical_f = [f for f in findings if f['severity'] == 'Critical']
-    major_f    = [f for f in findings if f['severity'] == 'Major']
-    minor_f    = [f for f in findings if f['severity'] == 'Minor']
-    open_f     = [f for f in findings if f['status'] == 'Open']
-    resolved_f = [f for f in findings if f['status'] == 'Resolved']
+        # Findings
+        cur.execute("""
+            SELECT * FROM visit_findings WHERE monitoring_visit_id = ?
+            ORDER BY CASE severity WHEN 'Critical' THEN 1 WHEN 'Major' THEN 2 ELSE 3 END
+        """, (monitoring_visit_id,))
+        findings = [dict_from_row(r) for r in cur.fetchall()]
 
-    visit_date = v.get('actual_date') or v.get('planned_date')
-    today = _date.today().isoformat()
+        critical_f = [f for f in findings if f['severity'] == 'Critical']
+        major_f    = [f for f in findings if f['severity'] == 'Major']
+        minor_f    = [f for f in findings if f['severity'] == 'Minor']
+        open_f     = [f for f in findings if f['status'] == 'Open']
+        resolved_f = [f for f in findings if f['status'] == 'Resolved']
 
-    # Build report markdown
-    subj_table = "| Subject | Priority | SDV Status | SDV % | Notes |\n|---------|----------|-----------|-------|-------|\n"
-    for s in subjects:
-        subj_table += f"| {s['subject_id']} | {s['priority']} | {s['sdv_status']} | {s['sdv_percent']}% | {(s['priority_reason'] or '')[:60]}{'...' if len(s.get('priority_reason') or '') > 60 else ''} |\n"
+        visit_date = v.get('actual_date') or v.get('planned_date')
+        today = _date.today().isoformat()
 
-    obj_list = "\n".join([f"- [ ] {o}" for o in objectives]) if objectives else "- No objectives recorded"
+        # Build report markdown
+        subj_table = "| Subject | Priority | SDV Status | SDV % | Notes |\n|---------|----------|-----------|-------|-------|\n"
+        for s in subjects:
+            subj_table += f"| {s['subject_id']} | {s['priority']} | {s['sdv_status']} | {s['sdv_percent']}% | {(s['priority_reason'] or '')[:60]}{'...' if len(s.get('priority_reason') or '') > 60 else ''} |\n"
 
-    def findings_section(flist, label):
-        if not flist:
-            return f"### {label}\nNo {label.lower()} findings.\n"
-        out = f"### {label}\n"
-        for i, f in enumerate(flist, 1):
-            subj = f"Subject {f['subject_id']} — " if f.get('subject_id') else ""
-            out += f"\n**Finding {i} — {subj}{f['finding_type']}**\n"
-            out += f"{f['description']}\n"
-            out += f"**Assigned to:** {f.get('assigned_to', 'TBD')} | **Due:** {f.get('due_date', 'TBD')} | **Status:** {f['status']}\n"
-        return out
+        obj_list = "\n".join([f"- [ ] {o}" for o in objectives]) if objectives else "- No objectives recorded"
 
-    report = f"""# Monitoring Visit Report — {v['visit_label']}
+        def findings_section(flist, label):
+            if not flist:
+                return f"### {label}\nNo {label.lower()} findings.\n"
+            out = f"### {label}\n"
+            for i, f in enumerate(flist, 1):
+                subj = f"Subject {f['subject_id']} — " if f.get('subject_id') else ""
+                out += f"\n**Finding {i} — {subj}{f['finding_type']}**\n"
+                out += f"{f['description']}\n"
+                out += f"**Assigned to:** {f.get('assigned_to', 'TBD')} | **Due:** {f.get('due_date', 'TBD')} | **Status:** {f['status']}\n"
+            return out
+
+        report = f"""# Monitoring Visit Report — {v['visit_label']}
 
 **Site:** {v['site_id']} — {v['site_name']}, {v['city']}, {v['state_province']}
 **Visit Date:** {visit_date}
@@ -1870,29 +1857,29 @@ Monitoring Plan for Protocol NVX-1218.22 (NovaPlex-450 in Advanced NSCLC).
 *This is a system-generated draft — please review and add CRA notes before finalising.*
 """
 
-    # Upsert report
-    cur.execute("SELECT report_id FROM visit_reports WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
-    existing = cur.fetchone()
-    if existing:
-        cur.execute("""
-            UPDATE visit_reports
-            SET draft_content = ?, report_status = 'Draft', updated_at = datetime('now')
-            WHERE monitoring_visit_id = ?
-        """, (report, monitoring_visit_id))
-    else:
-        cur.execute("""
-            INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content)
-            VALUES (?, 'Draft', ?)
-        """, (monitoring_visit_id, report))
+        # Upsert report
+        cur.execute("SELECT report_id FROM visit_reports WHERE monitoring_visit_id = ?", (monitoring_visit_id,))
+        existing = cur.fetchone()
+        if existing:
+            cur.execute("""
+                UPDATE visit_reports
+                SET draft_content = ?, report_status = 'Draft', updated_at = datetime('now')
+                WHERE monitoring_visit_id = ?
+            """, (report, monitoring_visit_id))
+        else:
+            cur.execute("""
+                INSERT INTO visit_reports (monitoring_visit_id, report_status, draft_content)
+                VALUES (?, 'Draft', ?)
+            """, (monitoring_visit_id, report))
 
-    # Mark visit as In Progress
-    cur.execute("""
-        UPDATE monitoring_visits SET status = 'In Progress', updated_at = datetime('now')
-        WHERE monitoring_visit_id = ? AND status NOT IN ('Completed', 'Cancelled')
-    """, (monitoring_visit_id,))
+        # Mark visit as In Progress
+        cur.execute("""
+            UPDATE monitoring_visits SET status = 'In Progress', updated_at = datetime('now')
+            WHERE monitoring_visit_id = ? AND status NOT IN ('Completed', 'Cancelled')
+        """, (monitoring_visit_id,))
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+
     return {"success": True, "report": report}
 
 
@@ -1902,24 +1889,22 @@ def update_report_status(monitoring_visit_id: int, status: str, cra_notes: str =
     valid = ['Draft', 'CRA Reviewed', 'Finalised']
     if status not in valid:
         raise HTTPException(status_code=400, detail=f"Status must be one of {valid}")
-    conn = get_db()
-    cur = conn.cursor()
-    finalised_at = "datetime('now')" if status == 'Finalised' else 'NULL'
-    cur.execute(f"""
-        UPDATE visit_reports
-        SET report_status = ?,
-            cra_notes = COALESCE(?, cra_notes),
-            finalised_at = CASE WHEN ? = 'Finalised' THEN datetime('now') ELSE finalised_at END,
-            updated_at = datetime('now')
-        WHERE monitoring_visit_id = ?
-    """, (status, cra_notes, status, monitoring_visit_id))
-    if status == 'Finalised':
+    with get_db() as conn:
+        cur = conn.cursor()
         cur.execute("""
-            UPDATE monitoring_visits SET status = 'Completed', updated_at = datetime('now')
+            UPDATE visit_reports
+            SET report_status = ?,
+                cra_notes = COALESCE(?, cra_notes),
+                finalised_at = CASE WHEN ? = 'Finalised' THEN datetime('now') ELSE finalised_at END,
+                updated_at = datetime('now')
             WHERE monitoring_visit_id = ?
-        """, (monitoring_visit_id,))
-    conn.commit()
-    conn.close()
+        """, (status, cra_notes, status, monitoring_visit_id))
+        if status == 'Finalised':
+            cur.execute("""
+                UPDATE monitoring_visits SET status = 'Completed', updated_at = datetime('now')
+                WHERE monitoring_visit_id = ?
+            """, (monitoring_visit_id,))
+        conn.commit()
     return {"success": True, "report_status": status}
 
 
