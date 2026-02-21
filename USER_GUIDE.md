@@ -23,7 +23,7 @@
 
 ## 1. Introduction
 
-The **Clinical Trial Monitor — AI Powered** is a web application that automates the monitoring of clinical trial protocol compliance for study NVX-1218.22. It combines deterministic rule checks with Claude AI (a Large Language Model) to evaluate subject data against 65 protocol rules — covering inclusion/exclusion criteria, adverse event safety, laboratory thresholds, protocol deviations, and efficacy endpoints.
+The **Clinical Trial Monitor — AI Powered** is a web application that automates the monitoring of clinical trial protocol compliance for study NVX-1218.22. It combines deterministic rule checks with Claude AI (a Large Language Model) to evaluate subject data against 43 protocol rules — covering inclusion/exclusion criteria, adverse event safety, laboratory thresholds, protocol deviations, and efficacy endpoints.
 
 ### What it does
 - Stores and displays clinical data for all enrolled subjects (demographics, visits, labs, AEs, concomitant medications)
@@ -53,7 +53,7 @@ The application has six tabs accessible from the top navigation bar:
 |-----|------|---------|-------------|
 | **Dashboard** | 📊 | Study-level summary and quick actions | Daily check — study health at a glance |
 | **Subjects** | 👥 | Browse subjects and view clinical data | Reviewing input data before or after evaluation |
-| **Rules** | 📋 | View all 65 protocol rules, templates, and sample inputs | Understanding what rules check and how |
+| **Rules** | 📋 | View all 43 protocol rules, templates, and sample inputs | Understanding what rules check and how |
 | **Execute** | ▶️ | Run AI evaluation for a single subject | Triggering on-demand evaluation |
 | **Results** | 📁 | Review all past evaluation runs | Auditing prior runs, reviewing per-rule reasoning |
 | **Violations** | 🚨 | Study-wide violations dashboard | Monitoring all active flags across all subjects |
@@ -296,7 +296,7 @@ If violations exist, a summary banner shows counts by severity (Critical / Major
 
 ### 5.1 Rule Library Overview
 
-Click **📋 Rules** to see all 65 protocol rules organized by category.
+Click **📋 Rules** to see all 43 protocol rules organized by category.
 
 **Header shows:** Number of active rules and categories covered.
 
@@ -349,6 +349,8 @@ A direct threshold or boolean check — **no AI involved**. The system queries t
 
 Example: QTcF > 470 ms at screening → immediate screen failure flag.
 
+> **Note:** The template assigned to a rule defines the *output schema* (what fields the result returns). The `evaluation_type` field on each individual rule determines whether Claude AI or deterministic logic is actually used to evaluate it. Some templates (e.g., SAE_REPORTING_TEMPLATE, AE_GRADING_TEMPLATE) are used by both LLM and deterministic rules.
+
 ---
 
 ### 5.4 The Six Evaluation Templates
@@ -356,38 +358,38 @@ Example: QTcF > 470 ms at screening → immediate screen failure flag.
 Each rule is assigned one of six templates that defines how it is evaluated.
 
 #### 1. Complex Medical History Evaluation (`COMPLEX_EXCLUSION_TEMPLATE`) — 🤖 LLM
-Used for exclusion criteria requiring review of prior therapies, active disease states, or conditions that need clinical judgment to assess.
+Used for exclusion/inclusion criteria and protocol deviations requiring clinical judgment — reviewing prior therapies, active conditions, tumor assessments, or concomitant medications.
 
-- **Tools invoked:** `check_medical_history`, `check_conmeds`, `check_labs`, `get_ecg_results`
-- **Example rules:** Prior PD-1/PD-L1 therapy (EXCL-001), Active autoimmune disease (EXCL-003)
+- **Tools invoked:** `check_medical_history`, `check_conmeds`, `check_labs`, `get_tumor_assessments`, `get_visits`, `get_adverse_events`, `get_ecg_results` (varies per rule)
+- **Example rules:** Prior PD-1/PD-L1 therapy (EXCL-001), Active autoimmune disease (EXCL-003), Disease progression per RECIST 1.1 (EP-001), Prohibited concomitant medication (DEV-002)
 - **Output:** excluded, confidence, evidence, reasoning, missing_data, recommendation
 
 #### 2. Simple Threshold Check (`SIMPLE_THRESHOLD_TEMPLATE`) — ⚙️ Deterministic
-A single numeric comparison against a protocol-defined threshold.
+A single numeric comparison against a protocol-defined threshold. Also used for visit window checks.
 
-- **Tools invoked:** `check_lab_threshold` (database query only)
-- **Example rules:** QTcF > 470 ms (EXCL-008), ALT > 3×ULN (LAB-001)
+- **Tools invoked:** `check_labs`, `check_visit_windows` (database query only — no AI)
+- **Example rules:** QTcF > 470 ms (EXCL-008), ALT > 3×ULN (LAB-001), Visit outside protocol window (DEV-001), ANC >= 1.5 (INCL-007)
 - **Output:** excluded, actual_value, threshold, operator, action_required
 
 #### 3. Boolean Status Check (`BOOLEAN_STATUS_TEMPLATE`) — ⚙️ Deterministic
-A yes/no field check — the value in the database either matches the exclusion condition or it does not.
+A yes/no field check — the value in the database either matches the required condition or it does not.
 
-- **Tools invoked:** `check_field_value` (database query only)
-- **Example rules:** Pregnancy status (INCL-012)
+- **Tools invoked:** Direct field lookup (database query only — no AI)
+- **Example rules:** Age >= 18 years (INCL-001), Written informed consent obtained (INCL-013)
 - **Output:** excluded, field_value, expected_value, action_required
 
-#### 4. SAE Reporting (`SAE_REPORTING_TEMPLATE`) — 🤖 LLM
-Detects serious adverse events and verifies 24-hour reporting compliance per ICH E6. The AI checks whether the SAE was reported to the sponsor within the required window.
+#### 4. SAE Reporting (`SAE_REPORTING_TEMPLATE`) — Mixed
+Used for SAE-related rules. Detection of SAEs uses deterministic logic (AE-001); verifying 24-hour reporting compliance uses the LLM (AE-004).
 
-- **Tools invoked:** `get_adverse_events`, `get_visits`, `check_medical_history`
-- **Example rules:** SAE Detection (AE-001), SAE Reporting Timeline (AE-004)
+- **Tools invoked:** `get_adverse_events` (AE-001, deterministic); `get_adverse_events`, `get_visits`, `check_medical_history` (AE-004, LLM)
+- **Example rules:** SAE Detection (AE-001 — deterministic), SAE Reporting Timeline (AE-004 — LLM)
 - **Output:** violated, severity, action_required (SAE_REPORT_REQUIRED), evidence, reasoning, confidence
 
-#### 5. AE Grading & Dose Management (`AE_GRADING_TEMPLATE`) — 🤖 LLM
-Evaluates CTCAE grading of adverse events and determines whether dose modifications, interruptions, or permanent discontinuations are warranted per protocol safety rules.
+#### 5. AE Grading & Dose Management (`AE_GRADING_TEMPLATE`) — Mixed
+Used for AE grading rules. Grade threshold checks use deterministic logic (AE-002); assessment of treatment-related discontinuations requires LLM judgment (AE-005).
 
-- **Tools invoked:** `get_adverse_events`, `get_labs`, `get_visits`
-- **Example rules:** Grade ≥3 AE Dose Modification (AE-002), Discontinuation due to AE (AE-005)
+- **Tools invoked:** `get_adverse_events` (AE-002, deterministic); `get_adverse_events`, `check_medical_history` (AE-005, LLM)
+- **Example rules:** Grade >=3 AE requiring dose modification (AE-002 — deterministic), Treatment-related AE leading to discontinuation (AE-005 — LLM)
 - **Output:** violated, severity, action_required (DOSE_MODIFICATION / DRUG_DISCONTINUATION), evidence, reasoning, confidence
 
 #### 6. irAESI Detection (`AESI_DETECTION_TEMPLATE`) — 🤖 LLM

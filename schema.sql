@@ -6,6 +6,10 @@
 -- DROP EXISTING TABLES (for clean re-creation)
 -- ============================================================================
 
+DROP TABLE IF EXISTS visit_reports CASCADE;
+DROP TABLE IF EXISTS visit_findings CASCADE;
+DROP TABLE IF EXISTS monitoring_visit_subjects CASCADE;
+DROP TABLE IF EXISTS monitoring_visits CASCADE;
 DROP TABLE IF EXISTS queries CASCADE;
 DROP TABLE IF EXISTS protocol_deviations CASCADE;
 DROP TABLE IF EXISTS ecg_results CASCADE;
@@ -331,6 +335,63 @@ CREATE TABLE queries (
     resolution_date DATE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+-- CTMS: MONITORING VISITS
+-- ============================================================================
+
+CREATE TABLE monitoring_visits (
+    monitoring_visit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL REFERENCES sites(site_id),
+    visit_type TEXT NOT NULL CHECK (visit_type IN ('SIV', 'IMV', 'COV', 'EoT')),
+    visit_label TEXT NOT NULL,
+    planned_date TEXT NOT NULL,
+    actual_date TEXT,
+    cra_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Planned' CHECK (status IN ('Planned', 'Confirmed', 'In Progress', 'Completed', 'Cancelled')),
+    visit_objectives TEXT,
+    prep_generated INTEGER DEFAULT 0,
+    prep_approved INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE monitoring_visit_subjects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL REFERENCES monitoring_visits(monitoring_visit_id),
+    subject_id TEXT NOT NULL REFERENCES subjects(subject_id),
+    sdv_status TEXT NOT NULL DEFAULT 'Not Started' CHECK (sdv_status IN ('Not Started', 'In Progress', 'Complete')),
+    sdv_percent INTEGER NOT NULL DEFAULT 0,
+    priority TEXT NOT NULL DEFAULT 'Low' CHECK (priority IN ('High', 'Medium', 'Low')),
+    priority_reason TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE visit_findings (
+    finding_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL REFERENCES monitoring_visits(monitoring_visit_id),
+    subject_id TEXT REFERENCES subjects(subject_id),
+    finding_type TEXT NOT NULL CHECK (finding_type IN ('Protocol Deviation', 'Query', 'SDV Finding', 'Action Item')),
+    description TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('Critical', 'Major', 'Minor')),
+    assigned_to TEXT,
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'Open' CHECK (status IN ('Open', 'Resolved')),
+    resolved_date TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE visit_reports (
+    report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL REFERENCES monitoring_visits(monitoring_visit_id),
+    report_status TEXT NOT NULL DEFAULT 'Draft' CHECK (report_status IN ('Draft', 'CRA Reviewed', 'Finalised')),
+    draft_content TEXT,
+    cra_notes TEXT,
+    finalised_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
 );
 
 -- ============================================================================

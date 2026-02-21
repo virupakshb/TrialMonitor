@@ -92,6 +92,7 @@ function App() {
         {currentView === 'violations' && <ViolationsDashboard />}
         {currentView === 'execute' && <RuleExecutor onNavigate={setCurrentView} />}
         {currentView === 'results' && <ResultsViewer />}
+        {currentView === 'site' && <SiteMonitoring onNavigate={setCurrentView} onSelectSubject={(id) => { setSelectedSubject(id); setCurrentView('subject-detail'); }} />}
       </main>
     </div>
   );
@@ -105,7 +106,8 @@ function Header({ currentView, setCurrentView }) {
     { id: 'rules', label: '📋 Rules', icon: '📋' },
     { id: 'execute', label: '▶️ Execute', icon: '▶️' },
     { id: 'results', label: '📁 Results', icon: '📁' },
-    { id: 'violations', label: '🚨 Violations', icon: '🚨' }
+    { id: 'violations', label: '🚨 Violations', icon: '🚨' },
+    { id: 'site', label: '🏥 Site', icon: '🏥' }
   ];
 
   return (
@@ -2074,6 +2076,483 @@ function ResultsViewer() {
           No {filterType === 'single' ? 'single-subject' : 'batch'} runs found.
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CTMS — SITE MONITORING VISITS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function SiteMonitoring({ onNavigate, onSelectSubject }) {
+  const SITE_ID = '101';
+  const [siteData, setSiteData] = useState(null);
+  const [selectedVisitId, setSelectedVisitId] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetch(`/api/ctms/site/${SITE_ID}`)
+      .then(r => r.json())
+      .then(d => { setSiteData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading site data...</div>;
+  if (!siteData) return <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>Failed to load site data.</div>;
+
+  const { site, monitoring_visits } = siteData;
+
+  const statusColor = (s) => ({
+    'Completed': '#10b981', 'Confirmed': '#3b82f6', 'Planned': '#f59e0b',
+    'In Progress': '#8b5cf6', 'Cancelled': '#94a3b8'
+  }[s] || '#94a3b8');
+
+  const visitIcon = (s) => ({
+    'Completed': '✅', 'Confirmed': '📋', 'Planned': '📅', 'In Progress': '🔄', 'Cancelled': '❌'
+  }[s] || '📅');
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '1100px', margin: '0 auto' }}>
+      {/* Site Header */}
+      <div style={{ background: 'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)', borderRadius: '12px', padding: '24px', color: 'white', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ fontSize: '13px', opacity: 0.7, marginBottom: '4px' }}>Site {site.site_id} · {site.city}, {site.state_province}</div>
+            <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 700 }}>🏥 {site.site_name}</h2>
+            <div style={{ marginTop: '8px', fontSize: '14px', opacity: 0.85 }}>PI: {site.principal_investigator} &nbsp;|&nbsp; Coordinator: {site.site_coordinator}</div>
+          </div>
+          <div style={{ display: 'flex', gap: '16px' }}>
+            {[
+              { label: 'Enrolled', val: site.actual_enrollment },
+              { label: 'Planned', val: site.planned_enrollment },
+              { label: 'Monitoring Visits', val: monitoring_visits.length }
+            ].map(c => (
+              <div key={c.label} style={{ textAlign: 'center', background: 'rgba(255,255,255,0.15)', borderRadius: '8px', padding: '10px 16px' }}>
+                <div style={{ fontSize: '24px', fontWeight: 700 }}>{c.val}</div>
+                <div style={{ fontSize: '11px', opacity: 0.8 }}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Visit Timeline */}
+      <h3 style={{ margin: '0 0 16px', color: '#1e3a5f', fontSize: '16px' }}>Monitoring Visit Timeline</h3>
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '32px', flexWrap: 'wrap' }}>
+        {monitoring_visits.map((mv, idx) => (
+          <div key={mv.monitoring_visit_id}
+            onClick={() => setSelectedVisitId(mv.monitoring_visit_id === selectedVisitId ? null : mv.monitoring_visit_id)}
+            style={{
+              flex: '1', minWidth: '200px', cursor: 'pointer', borderRadius: '10px', padding: '16px',
+              border: `2px solid ${selectedVisitId === mv.monitoring_visit_id ? statusColor(mv.status) : '#e2e8f0'}`,
+              background: selectedVisitId === mv.monitoring_visit_id ? '#f0f9ff' : 'white',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.07)', transition: 'all 0.2s'
+            }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontWeight: 700, fontSize: '15px' }}>{visitIcon(mv.status)} {mv.visit_label}</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '12px', background: statusColor(mv.status) + '20', color: statusColor(mv.status) }}>{mv.status}</span>
+            </div>
+            <div style={{ fontSize: '13px', color: '#64748b' }}>{mv.visit_type} · {mv.planned_date}</div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '4px' }}>CRA: {mv.cra_name}</div>
+            {mv.open_findings > 0 && <div style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444', fontWeight: 600 }}>⚠️ {mv.open_findings} open finding(s)</div>}
+            {mv.report_status && <div style={{ marginTop: '4px', fontSize: '11px', color: mv.report_status === 'Finalised' ? '#10b981' : '#f59e0b' }}>📄 Report: {mv.report_status}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Visit Detail Panel */}
+      {selectedVisitId && (
+        <MonitoringVisitDetail
+          visitId={selectedVisitId}
+          onSelectSubject={onSelectSubject}
+          onRefresh={() => {
+            fetch(`/api/ctms/site/${SITE_ID}`).then(r => r.json()).then(setSiteData);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function MonitoringVisitDetail({ visitId, onSelectSubject, onRefresh }) {
+  const [data, setData] = useState(null);
+  const [activePhase, setActivePhase] = useState('planning');
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState('');
+  const [showFindingForm, setShowFindingForm] = useState(false);
+  const [newFinding, setNewFinding] = useState({ subject_id: '', finding_type: 'Query', description: '', severity: 'Major', assigned_to: '', due_date: '' });
+  const [craNotes, setCraNotes] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const load = () => {
+    setLoading(true);
+    fetch(`/api/ctms/monitoring-visits/${visitId}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setCraNotes(d.report?.cra_notes || ''); setLoading(false); })
+      .catch(() => setLoading(false));
+  };
+
+  React.useEffect(() => { load(); }, [visitId]);
+
+  const doAction = (url, method = 'PUT', body = null) => {
+    setActionLoading(url);
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(url, opts)
+      .then(r => r.json())
+      .then(d => { setMsg(d.success ? '✅ Done' : '❌ Error'); load(); onRefresh(); return d; })
+      .catch(() => setMsg('❌ Request failed'))
+      .finally(() => setActionLoading(''));
+  };
+
+  if (loading) return <div style={{ padding: '32px', textAlign: 'center', color: '#64748b' }}>Loading visit details...</div>;
+  if (!data) return null;
+
+  const { visit, subjects, findings, report } = data;
+  const open_findings = findings.filter(f => f.status === 'Open');
+  const resolved_findings = findings.filter(f => f.status === 'Resolved');
+  const isUpcoming = ['Planned', 'Confirmed'].includes(visit.status);
+  const isCompleted = visit.status === 'Completed';
+
+  const severityColor = s => ({ Critical: '#dc2626', Major: '#f59e0b', Minor: '#10b981' }[s] || '#94a3b8');
+  const priorityColor = p => ({ High: '#dc2626', Medium: '#f59e0b', Low: '#10b981' }[p] || '#94a3b8');
+  const findingTypeColor = t => ({ 'Protocol Deviation': '#7c3aed', 'Query': '#2563eb', 'SDV Finding': '#f59e0b', 'Action Item': '#64748b' }[t] || '#94a3b8');
+
+  const phases = [
+    { id: 'planning', label: '1. Pre-Visit Planning' },
+    { id: 'during', label: '2. During Visit' },
+    { id: 'report', label: '3. Post-Visit Report' }
+  ];
+
+  return (
+    <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      {/* Visit Header */}
+      <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '17px', color: '#1e3a5f' }}>{visit.visit_label} — {visit.visit_type}</h3>
+          <div style={{ fontSize: '13px', color: '#64748b', marginTop: '3px' }}>
+            Planned: {visit.planned_date} {visit.actual_date ? `· Actual: ${visit.actual_date}` : ''} · CRA: {visit.cra_name}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {msg && <span style={{ fontSize: '13px', color: '#10b981' }}>{msg}</span>}
+          <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '12px', background: '#e0f2fe', color: '#0369a1' }}>{visit.status}</span>
+        </div>
+      </div>
+
+      {/* Phase Tabs */}
+      <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0' }}>
+        {phases.map(p => (
+          <button key={p.id} onClick={() => setActivePhase(p.id)}
+            style={{ flex: 1, padding: '12px', border: 'none', background: activePhase === p.id ? 'white' : '#f8fafc',
+              borderBottom: activePhase === p.id ? '2px solid #2563eb' : '2px solid transparent',
+              color: activePhase === p.id ? '#2563eb' : '#64748b', fontWeight: activePhase === p.id ? 700 : 400,
+              cursor: 'pointer', fontSize: '13px', marginBottom: '-2px' }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ padding: '24px' }}>
+
+        {/* ── PHASE 1: PRE-VISIT PLANNING ────────────────────────────────── */}
+        {activePhase === 'planning' && (
+          <div>
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+              {/* Confirm Visit Date */}
+              {visit.status === 'Planned' && (
+                <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/confirm`)}
+                  disabled={!!actionLoading}
+                  style={{ padding: '10px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                  📅 Confirm Visit Date
+                </button>
+              )}
+              {visit.status === 'Confirmed' && (
+                <div style={{ padding: '10px 16px', background: '#f0fdf4', border: '1px solid #10b981', borderRadius: '8px', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+                  ✅ Visit Date Confirmed
+                </div>
+              )}
+              {/* Generate Prep */}
+              {!isCompleted && (
+                <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/generate-prep`, 'POST')}
+                  disabled={!!actionLoading}
+                  style={{ padding: '10px 20px', background: visit.prep_generated ? '#e2e8f0' : '#7c3aed', color: visit.prep_generated ? '#64748b' : 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                  🤖 {visit.prep_generated ? 'Regenerate Visit Prep' : 'Generate Visit Prep'}
+                </button>
+              )}
+              {/* Approve Prep */}
+              {visit.prep_generated && !visit.prep_approved && !isCompleted && (
+                <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/approve-prep`)}
+                  disabled={!!actionLoading}
+                  style={{ padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                  ✅ Approve Prep Agenda
+                </button>
+              )}
+              {visit.prep_approved && (
+                <div style={{ padding: '10px 16px', background: '#f0fdf4', border: '1px solid #10b981', borderRadius: '8px', fontSize: '13px', color: '#10b981', fontWeight: 600 }}>
+                  ✅ Prep Agenda Approved
+                </div>
+              )}
+            </div>
+
+            {/* Visit Objectives */}
+            {visit.visit_objectives && Array.isArray(visit.visit_objectives) && (
+              <div style={{ marginBottom: '24px' }}>
+                <h4 style={{ margin: '0 0 12px', color: '#1e3a5f', fontSize: '14px' }}>📋 Visit Objectives</h4>
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
+                  {visit.visit_objectives.map((obj, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', fontSize: '13px', color: '#374151' }}>
+                      <span style={{ color: '#94a3b8' }}>☐</span>
+                      <span>{obj}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Subject Priority List */}
+            {subjects.length > 0 && (
+              <div>
+                <h4 style={{ margin: '0 0 12px', color: '#1e3a5f', fontSize: '14px' }}>
+                  👥 Subject Priority List ({subjects.length} subjects)
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {subjects.map(s => (
+                    <div key={s.subject_id} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px 16px',
+                      background: '#f8fafc', borderRadius: '8px', border: `1px solid ${priorityColor(s.priority)}30`
+                    }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+                        background: priorityColor(s.priority) + '20', color: priorityColor(s.priority), whiteSpace: 'nowrap', marginTop: '2px' }}>
+                        {s.priority}
+                      </span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 700, fontSize: '14px', color: '#1e3a5f' }}>{s.subject_id}</span>
+                          <span style={{ fontSize: '12px', color: '#64748b' }}>SDV: {s.sdv_percent}%</span>
+                          <span style={{ fontSize: '11px', padding: '1px 8px', borderRadius: '10px',
+                            background: s.sdv_status === 'Complete' ? '#d1fae5' : s.sdv_status === 'In Progress' ? '#fef3c7' : '#f1f5f9',
+                            color: s.sdv_status === 'Complete' ? '#10b981' : s.sdv_status === 'In Progress' ? '#f59e0b' : '#94a3b8' }}>
+                            {s.sdv_status}
+                          </span>
+                          <button onClick={() => onSelectSubject(s.subject_id)}
+                            style={{ fontSize: '11px', padding: '2px 10px', border: '1px solid #2563eb', background: 'white', color: '#2563eb', borderRadius: '6px', cursor: 'pointer' }}>
+                            View Clinical Data →
+                          </button>
+                        </div>
+                        {s.priority_reason && <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>{s.priority_reason}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!visit.prep_generated && subjects.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '8px' }}>
+                <div style={{ fontSize: '32px', marginBottom: '12px' }}>🤖</div>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>Visit prep not yet generated</div>
+                <div style={{ fontSize: '13px' }}>Click "Generate Visit Prep" to analyse site subjects and create a prioritised review agenda</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PHASE 2: DURING VISIT ──────────────────────────────────────── */}
+        {activePhase === 'during' && (
+          <div>
+            {/* Log Finding Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h4 style={{ margin: 0, color: '#1e3a5f', fontSize: '14px' }}>Visit Findings ({open_findings.length} open, {resolved_findings.length} resolved)</h4>
+              {!isCompleted && (
+                <button onClick={() => setShowFindingForm(!showFindingForm)}
+                  style={{ padding: '8px 16px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+                  + Log Finding
+                </button>
+              )}
+            </div>
+
+            {/* Log Finding Form */}
+            {showFindingForm && (
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
+                <h5 style={{ margin: '0 0 16px', color: '#1e3a5f' }}>Log New Finding</h5>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Subject ID</label>
+                    <input value={newFinding.subject_id} onChange={e => setNewFinding({...newFinding, subject_id: e.target.value})}
+                      placeholder="e.g. 101-901"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Finding Type</label>
+                    <select value={newFinding.finding_type} onChange={e => setNewFinding({...newFinding, finding_type: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px' }}>
+                      {['Protocol Deviation', 'Query', 'SDV Finding', 'Action Item'].map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Severity</label>
+                    <select value={newFinding.severity} onChange={e => setNewFinding({...newFinding, severity: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px' }}>
+                      {['Critical', 'Major', 'Minor'].map(s => <option key={s}>{s}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Assigned To</label>
+                    <input value={newFinding.assigned_to} onChange={e => setNewFinding({...newFinding, assigned_to: e.target.value})}
+                      placeholder="Site staff name"
+                      style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Due Date</label>
+                    <input type="date" value={newFinding.due_date} onChange={e => setNewFinding({...newFinding, due_date: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px' }} />
+                  </div>
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Description</label>
+                  <textarea value={newFinding.description} onChange={e => setNewFinding({...newFinding, description: e.target.value})}
+                    rows={3} placeholder="Describe the finding in detail..."
+                    style={{ width: '100%', padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button onClick={() => {
+                    doAction(`/api/ctms/monitoring-visits/${visitId}/findings`, 'POST', newFinding)
+                      .then(() => { setNewFinding({ subject_id: '', finding_type: 'Query', description: '', severity: 'Major', assigned_to: '', due_date: '' }); setShowFindingForm(false); });
+                  }}
+                    style={{ padding: '8px 20px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+                    Save Finding
+                  </button>
+                  <button onClick={() => setShowFindingForm(false)}
+                    style={{ padding: '8px 16px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Findings List */}
+            {findings.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8', background: '#f8fafc', borderRadius: '8px' }}>
+                No findings logged yet. Click "+ Log Finding" to record issues found during the visit.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {findings.map(f => (
+                  <div key={f.finding_id} style={{
+                    padding: '14px 16px', borderRadius: '8px', border: '1px solid #e2e8f0',
+                    borderLeft: `4px solid ${severityColor(f.severity)}`,
+                    background: f.status === 'Resolved' ? '#f8fafc' : 'white', opacity: f.status === 'Resolved' ? 0.75 : 1
+                  }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+                        background: severityColor(f.severity) + '20', color: severityColor(f.severity) }}>{f.severity}</span>
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
+                        background: findingTypeColor(f.finding_type) + '15', color: findingTypeColor(f.finding_type) }}>{f.finding_type}</span>
+                      {f.subject_id && <span style={{ fontSize: '12px', fontWeight: 600, color: '#1e3a5f' }}>{f.subject_id}</span>}
+                      <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
+                        background: f.status === 'Resolved' ? '#d1fae5' : '#fef3c7', color: f.status === 'Resolved' ? '#10b981' : '#f59e0b', marginLeft: 'auto' }}>
+                        {f.status}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#374151', marginBottom: '6px' }}>{f.description}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>
+                      Assigned to: {f.assigned_to || 'TBD'} · Due: {f.due_date || 'TBD'}
+                      {f.resolved_date && ` · Resolved: ${f.resolved_date}`}
+                    </div>
+                    {f.status === 'Open' && !isCompleted && (
+                      <button onClick={() => doAction(`/api/ctms/findings/${f.finding_id}/resolve`)}
+                        style={{ marginTop: '8px', padding: '4px 12px', fontSize: '12px', border: '1px solid #10b981', color: '#10b981', background: 'white', borderRadius: '6px', cursor: 'pointer' }}>
+                        Mark Resolved
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Objectives checklist (compact) */}
+            {visit.visit_objectives && Array.isArray(visit.visit_objectives) && (
+              <div style={{ marginTop: '24px' }}>
+                <h4 style={{ margin: '0 0 10px', color: '#1e3a5f', fontSize: '14px' }}>📋 Objectives Checklist</h4>
+                <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '14px' }}>
+                  {visit.visit_objectives.map((obj, i) => (
+                    <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '6px', fontSize: '13px', color: '#374151' }}>
+                      <span style={{ color: '#94a3b8' }}>☐</span><span>{obj}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── PHASE 3: POST-VISIT REPORT ─────────────────────────────────── */}
+        {activePhase === 'report' && (
+          <div>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/generate-report`, 'POST')}
+                disabled={!!actionLoading}
+                style={{ padding: '10px 20px', background: report?.report_status === 'Finalised' ? '#e2e8f0' : '#7c3aed', color: report?.report_status === 'Finalised' ? '#94a3b8' : 'white', border: 'none', borderRadius: '8px', cursor: report?.report_status === 'Finalised' ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '14px' }}
+                title={report?.report_status === 'Finalised' ? 'Report is finalised' : ''}>
+                📝 {report ? 'Regenerate Draft' : 'Generate Visit Report'}
+              </button>
+              {report && report.report_status !== 'CRA Reviewed' && report.report_status !== 'Finalised' && (
+                <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/report-status?status=CRA+Reviewed&cra_notes=${encodeURIComponent(craNotes)}`)}
+                  style={{ padding: '10px 20px', background: '#f59e0b', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                  👁 Mark as CRA Reviewed
+                </button>
+              )}
+              {report && report.report_status === 'CRA Reviewed' && (
+                <button onClick={() => doAction(`/api/ctms/monitoring-visits/${visitId}/report-status?status=Finalised&cra_notes=${encodeURIComponent(craNotes)}`)}
+                  style={{ padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '14px' }}>
+                  ✅ Finalise Report
+                </button>
+              )}
+              {report && (
+                <span style={{ fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '12px',
+                  background: report.report_status === 'Finalised' ? '#d1fae5' : report.report_status === 'CRA Reviewed' ? '#fef3c7' : '#f1f5f9',
+                  color: report.report_status === 'Finalised' ? '#10b981' : report.report_status === 'CRA Reviewed' ? '#f59e0b' : '#94a3b8' }}>
+                  {report.report_status}
+                </span>
+              )}
+            </div>
+
+            {/* Report content */}
+            {report?.draft_content ? (
+              <div>
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '20px', marginBottom: '16px', maxHeight: '500px', overflowY: 'auto' }}>
+                  <pre style={{ margin: 0, fontFamily: 'inherit', fontSize: '13px', whiteSpace: 'pre-wrap', color: '#374151', lineHeight: '1.6' }}>
+                    {report.draft_content}
+                  </pre>
+                </div>
+                {/* CRA Notes */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#1e3a5f', marginBottom: '6px' }}>
+                    ✏️ CRA Notes {report.report_status === 'Finalised' ? '(locked)' : '(add your comments/edits)'}
+                  </label>
+                  <textarea value={craNotes} onChange={e => setCraNotes(e.target.value)}
+                    disabled={report.report_status === 'Finalised'}
+                    rows={4} placeholder="Add any additional notes, corrections, or context here..."
+                    style={{ width: '100%', padding: '10px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', resize: 'vertical', background: report.report_status === 'Finalised' ? '#f8fafc' : 'white', boxSizing: 'border-box' }} />
+                </div>
+                {report.cra_notes && report.report_status === 'Finalised' && (
+                  <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '8px', padding: '12px', fontSize: '13px', color: '#0369a1' }}>
+                    <strong>CRA Notes (finalised):</strong> {report.cra_notes}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px', color: '#94a3b8', background: '#f8fafc', borderRadius: '8px' }}>
+                <div style={{ fontSize: '36px', marginBottom: '12px' }}>📄</div>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>No report generated yet</div>
+                <div style={{ fontSize: '13px' }}>Click "Generate Visit Report" to auto-draft a monitoring visit report from the visit data and findings</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

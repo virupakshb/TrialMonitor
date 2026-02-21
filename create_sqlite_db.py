@@ -298,6 +298,60 @@ CREATE TABLE queries (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
 );
+
+-- ── CTMS: Monitoring Visits ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS monitoring_visits (
+    monitoring_visit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL,
+    visit_type TEXT NOT NULL,
+    visit_label TEXT NOT NULL,
+    planned_date TEXT NOT NULL,
+    actual_date TEXT,
+    cra_name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Planned',
+    visit_objectives TEXT,
+    prep_generated INTEGER DEFAULT 0,
+    prep_approved INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS monitoring_visit_subjects (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL,
+    subject_id TEXT NOT NULL,
+    sdv_status TEXT NOT NULL DEFAULT 'Not Started',
+    sdv_percent INTEGER NOT NULL DEFAULT 0,
+    priority TEXT NOT NULL DEFAULT 'Low',
+    priority_reason TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS visit_findings (
+    finding_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL,
+    subject_id TEXT,
+    finding_type TEXT NOT NULL,
+    description TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    assigned_to TEXT,
+    due_date TEXT,
+    status TEXT NOT NULL DEFAULT 'Open',
+    resolved_date TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS visit_reports (
+    report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    monitoring_visit_id INTEGER NOT NULL,
+    report_status TEXT NOT NULL DEFAULT 'Draft',
+    draft_content TEXT,
+    cra_notes TEXT,
+    finalised_at TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 cur.executescript(schema_sql)
@@ -687,13 +741,244 @@ print("   ✓ Full clinical dataset for 101-901 complete")
 # Commit and close
 conn.commit()
 
+# ── CTMS Synthetic Data ───────────────────────────────────────────────────────
+print("\n4b. Seeding CTMS monitoring visit data for Site 101...")
+
+# 3 monitoring visits for Site 101
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (1, '101', 'IMV', 'IMV-1', '2024-10-15', '2024-10-15',
+        'Sarah Mitchell',
+        'Completed',
+        '["Review first 10 subjects SDV","Verify ICF signatures","Review AE documentation","Check lab results against protocol thresholds"]',
+        1, 1)
+""")
+
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (2, '101', 'IMV', 'IMV-2', '2025-01-14', '2025-01-14',
+        'Sarah Mitchell',
+        'Completed',
+        '["Follow up on IMV-1 action items","SDV subjects 101-011 to 101-020","Review SAE for 101-901 Margaret Chen","Close 3 open queries","Review protocol deviation corrective actions"]',
+        1, 1)
+""")
+
+cur.execute("""
+    INSERT INTO monitoring_visits
+        (monitoring_visit_id, site_id, visit_type, visit_label, planned_date, actual_date,
+         cra_name, status, visit_objectives, prep_generated, prep_approved)
+    VALUES (3, '101', 'IMV', 'IMV-3', '2025-03-05', NULL,
+        'Sarah Mitchell',
+        'Planned',
+        NULL,
+        0, 0)
+""")
+
+# monitoring_visit_subjects for IMV-2 (completed — has real SDV data)
+imv2_subjects = [
+    (2, '101-901', 'Complete',  100, 'High',   'Critical violations: Grade 4 immune myocarditis, cardiac arrest, SAE reporting overdue. Requires immediate review.'),
+    (2, '101-003', 'Complete',   85, 'High',   'Two open queries older than 30 days, visit window deviation at Week 6.'),
+    (2, '101-007', 'Complete',   90, 'Medium', 'Overdue Week 9 lab results, one open query on conmed documentation.'),
+    (2, '101-012', 'Complete',  100, 'Medium', 'Grade 2 fatigue ongoing — monitor AE progression.'),
+    (2, '101-015', 'Complete',   75, 'Low',    'SDV incomplete from prior visit. No active issues.'),
+    (2, '101-018', 'In Progress', 60, 'Low',   'Routine review — no significant findings.'),
+    (2, '101-021', 'Complete',  100, 'Low',    'Clean subject — all data complete and within protocol.'),
+]
+cur.executemany("""
+    INSERT INTO monitoring_visit_subjects
+        (monitoring_visit_id, subject_id, sdv_status, sdv_percent, priority, priority_reason)
+    VALUES (?, ?, ?, ?, ?, ?)
+""", imv2_subjects)
+
+# monitoring_visit_subjects for IMV-3 (upcoming — no subjects yet, agent will populate on Generate Prep)
+# (left empty — populated by agent on generate-prep call)
+
+# visit_findings for IMV-2 (completed visit — mix of open and resolved)
+imv2_findings = [
+    (2, '101-901', 'Protocol Deviation', 'SAE (immune myocarditis Grade 4, onset 2024-10-18) not reported to sponsor within required 24-hour window. Reported 72 hours after onset.', 'Critical', 'Jessica Martinez', '2025-01-28', 'Open', None),
+    (2, '101-901', 'Query',              'Cardiac arrest event (2024-10-25) — source document (ECG strip and resuscitation record) not yet uploaded to EDC. Required for SAE narrative.', 'Major',    'Jessica Martinez', '2025-01-28', 'Open', None),
+    (2, '101-003', 'Query',              'Visit 4 (Week 6) conducted on 2024-10-08 — 5 days outside protocol window of C2D1 +/- 3 days. No deviation form raised.', 'Major',    'Dr. Emily Chen',   '2025-01-21', 'Resolved', '2025-01-20'),
+    (2, '101-007', 'SDV Finding',        'Week 9 haematology results (ANC 0.9 x10^9/L) recorded in source but not entered into EDC. Grade 3 neutropenia threshold breached — requires AE entry.', 'Critical', 'Jessica Martinez', '2025-01-21', 'Open', None),
+    (2, '101-015', 'Action Item',        'SDV for visits 3 and 4 incomplete from IMV-1. CRA to complete at IMV-3. Site coordinator to ensure CRFs are fully signed before next visit.', 'Minor',    'Jessica Martinez', '2025-03-05', 'Open', None),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv2_findings)
+
+# visit_findings for IMV-1 (older completed visit — all resolved)
+imv1_findings = [
+    (1, '101-005', 'Query',       'Concomitant medication (Metformin) start date missing in EDC. Source document confirms start date as 2024-07-01.', 'Minor', 'Jessica Martinez', '2024-10-29', 'Resolved', '2024-10-28'),
+    (1, '101-009', 'SDV Finding', 'Screening weight recorded as 68 kg in source but entered as 86 kg in EDC — data entry error. Corrected and verified.', 'Major', 'Jessica Martinez', '2024-10-22', 'Resolved', '2024-10-21'),
+]
+cur.executemany("""
+    INSERT INTO visit_findings
+        (monitoring_visit_id, subject_id, finding_type, description, severity,
+         assigned_to, due_date, status, resolved_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", imv1_findings)
+
+# visit_report for IMV-2 (finalised)
+imv2_report = """# Monitoring Visit Report — IMV-2
+**Site:** 101 — Memorial Cancer Center, Boston, MA
+**Visit Date:** 14 January 2025
+**Visit Type:** Interim Monitoring Visit (IMV-2)
+**CRA:** Sarah Mitchell
+**Principal Investigator:** Dr. Emily Chen
+**Site Coordinator:** Jessica Martinez
+
+---
+
+## 1. Visit Summary
+
+An interim monitoring visit was conducted at Memorial Cancer Center on 14 January 2025.
+The visit was conducted in accordance with the Monitoring Plan for Protocol NVX-1218.22.
+The primary objectives were to follow up on IMV-1 action items, complete SDV for subjects
+101-011 through 101-021, review the SAE for subject 101-901, and close outstanding queries.
+
+**Attendees:** Sarah Mitchell (CRA), Dr. Emily Chen (PI), Jessica Martinez (Site Coordinator)
+**Duration:** 08:30 — 17:00
+
+---
+
+## 2. Subjects Reviewed
+
+| Subject | SDV Status | SDV % | Priority | Notes |
+|---------|-----------|-------|----------|-------|
+| 101-901 | Complete | 100% | HIGH | SAE review — critical findings (see Section 4) |
+| 101-003 | Complete | 85% | HIGH | Protocol deviation resolved; query closed |
+| 101-007 | Complete | 90% | MEDIUM | EDC entry error identified (see findings) |
+| 101-012 | Complete | 100% | MEDIUM | AE monitoring ongoing — stable |
+| 101-015 | Complete | 75% | LOW | SDV carries forward to IMV-3 |
+| 101-018 | In Progress | 60% | LOW | To be completed at IMV-3 |
+| 101-021 | Complete | 100% | LOW | Clean — no findings |
+
+---
+
+## 3. Objectives Review
+
+- [x] Follow up on IMV-1 action items — 2 of 2 resolved
+- [x] SDV subjects 101-011 to 101-020 — completed (75-100% per subject)
+- [x] Review SAE for 101-901 Margaret Chen — reviewed; critical finding raised
+- [x] Close 3 open queries — 1 of 3 closed; 2 remain open
+- [x] Review protocol deviation corrective actions — 1 deviation form raised and resolved
+
+---
+
+## 4. Findings & Action Items
+
+### CRITICAL
+
+**Finding 1 — Subject 101-901 — Protocol Deviation (SAE Reporting Timeline)**
+The SAE for immune myocarditis (Grade 4, onset 2024-10-18) was not reported to the sponsor
+within the required 24-hour window per ICH E6 and Protocol Section 8.2. Report was submitted
+72 hours after onset awareness. A protocol deviation form must be raised immediately.
+**Assigned to:** Jessica Martinez | **Due:** 28 January 2025 | **Status:** OPEN
+
+**Finding 2 — Subject 101-007 — SDV Finding (Missing AE Entry)**
+Grade 3 neutropenia (ANC 0.9 x10^9/L) identified in source haematology results at Week 9 but
+not entered into EDC as an Adverse Event. Entry required per protocol safety reporting obligations.
+**Assigned to:** Jessica Martinez | **Due:** 21 January 2025 | **Status:** OPEN
+
+### MAJOR
+
+**Finding 3 — Subject 101-901 — Query (Missing Source Document)**
+ECG strip and resuscitation record for cardiac arrest event (2024-10-25) not uploaded to EDC.
+Required for complete SAE narrative. Site to upload within 14 days.
+**Assigned to:** Jessica Martinez | **Due:** 28 January 2025 | **Status:** OPEN
+
+### MINOR
+
+**Finding 4 — Subject 101-015 — Action Item (SDV Carry-Forward)**
+SDV for visits 3 and 4 incomplete from IMV-1. CRAs to prioritise at IMV-3.
+**Assigned to:** Jessica Martinez | **Due:** 05 March 2025 | **Status:** OPEN
+
+### RESOLVED AT THIS VISIT
+
+**Finding 5 — Subject 101-003 — Query (Visit Window Deviation)**
+Visit 4 conducted 5 days outside protocol window. Deviation form raised and approved by PI.
+**Resolved:** 20 January 2025
+
+---
+
+## 5. Outstanding Issues
+
+- 2 queries open >14 days (101-901 SAE documentation, 101-007 AE entry)
+- 1 critical protocol deviation open (SAE reporting timeline for 101-901)
+- SDV incomplete for subjects 101-015 (75%) and 101-018 (60%)
+
+---
+
+## 6. Next Steps & Follow-Up
+
+1. Jessica Martinez to raise protocol deviation form for 101-901 SAE reporting delay — **by 28 Jan 2025**
+2. Jessica Martinez to enter Grade 3 neutropenia AE for 101-007 in EDC — **by 21 Jan 2025**
+3. Jessica Martinez to upload source documents for 101-901 cardiac arrest — **by 28 Jan 2025**
+4. IMV-3 scheduled for **05 March 2025** — priority: complete SDV for 101-015, 101-018; verify action item closure
+
+---
+
+*Report prepared by: Sarah Mitchell, CRA*
+*Report date: 17 January 2025*
+*Next monitoring visit: IMV-3 — 05 March 2025*
+"""
+
+cur.execute("""
+    INSERT INTO visit_reports
+        (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (2, 'Finalised', ?, 'All findings discussed with PI and site coordinator on the day. PI acknowledged the SAE deviation and committed to corrective action within protocol timelines.', '2025-01-17')
+""", (imv2_report,))
+
+# visit_report for IMV-1 (older, finalised, brief)
+imv1_report = """# Monitoring Visit Report — IMV-1
+**Site:** 101 — Memorial Cancer Center, Boston, MA
+**Visit Date:** 15 October 2024
+**Visit Type:** Interim Monitoring Visit (IMV-1)
+**CRA:** Sarah Mitchell
+
+---
+
+## 1. Visit Summary
+First interim monitoring visit following site initiation. SDV completed for subjects 101-001
+through 101-010. Two minor findings identified and resolved.
+
+## 2. Subjects Reviewed
+Subjects 101-001 to 101-010 reviewed. SDV 100% complete for 9 of 10 subjects. Subject 101-009
+required data correction (weight transcription error).
+
+## 3. Findings
+All findings resolved at or shortly after the visit. No critical or major outstanding issues.
+
+## 4. Next Steps
+IMV-2 scheduled for January 2025. Site to ensure CRFs for subjects 101-011 onwards are complete
+prior to next visit.
+
+*Report finalised: 20 October 2024*
+"""
+
+cur.execute("""
+    INSERT INTO visit_reports
+        (monitoring_visit_id, report_status, draft_content, cra_notes, finalised_at)
+    VALUES (1, 'Finalised', ?, NULL, '2024-10-20')
+""", (imv1_report,))
+
+conn.commit()
+print("✓ CTMS monitoring visit data seeded (Site 101: 3 visits, 5 findings, 2 reports)")
+
 # Get statistics
 print("\n5. Database Statistics:")
 tables = [
     'sites', 'subjects', 'demographics', 'visits', 'vital_signs',
     'laboratory_results', 'adverse_events', 'medical_history',
     'concomitant_medications', 'tumor_assessments', 'ecg_results',
-    'protocol_deviations', 'queries'
+    'protocol_deviations', 'queries',
+    'monitoring_visits', 'monitoring_visit_subjects', 'visit_findings', 'visit_reports'
 ]
 
 total_records = 0
