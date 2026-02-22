@@ -958,21 +958,6 @@ def get_usage():
     return get_usage_stats()
 
 
-@app.get("/api/debug/env")
-def debug_env():
-    """Show which env var keys exist (not values) — for diagnosing missing Railway vars"""
-    keys = sorted(os.environ.keys())
-    anthropic_related = [k for k in keys if 'anthropic' in k.lower() or 'api_key' in k.lower()]
-    # Show ALL key names so we can spot typos/casing issues
-    return {
-        "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
-        "anthropic_key_length": len(os.environ.get("ANTHROPIC_API_KEY", "")),
-        "anthropic_related_vars": anthropic_related,
-        "all_env_var_names": keys,
-        "total_env_vars": len(keys),
-    }
-
-
 @app.post("/api/usage/reset")
 def reset_usage():
     """Reset the session usage counter"""
@@ -1654,18 +1639,11 @@ def cra_copilot_chat(body: dict):
     except ImportError as e:
         return {"type": "text", "text": f"CRA Copilot unavailable — anthropic library not installed: {e}", "document": None, "table": None}
 
-    # Read key — try multiple approaches to handle Railway env var edge cases
-    api_key = (
-        os.environ.get("ANTHROPIC_API_KEY") or
-        os.environ.get("anthropic_api_key") or
-        os.environ.get("Anthropic_API_Key")
-    )
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        all_keys = list(os.environ.keys())
-        ant_keys = [k for k in all_keys if 'anthrop' in k.lower() or 'api_key' in k.lower()]
         return {
             "type": "text",
-            "text": f"ANTHROPIC_API_KEY not found in environment. Anthropic-related vars found: {ant_keys}. Total env vars: {len(all_keys)}. Check Railway Variables tab.",
+            "text": "CRA Copilot is not available — ANTHROPIC_API_KEY not configured.",
             "document": None,
             "table": None
         }
@@ -1898,11 +1876,9 @@ ALWAYS respond in valid JSON with this exact structure:
         }
 
     except Exception as e:
-        import traceback
-        tb = traceback.format_exc()[-300:]
         return {
             "type": "text",
-            "text": f"Error: {type(e).__name__}: {str(e)[:200]}\n\nTrace: {tb}",
+            "text": f"An error occurred: {str(e)[:200]}",
             "document": None,
             "table": None
         }
