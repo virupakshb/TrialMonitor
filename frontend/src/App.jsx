@@ -2857,7 +2857,7 @@ function CopilotPanel({ context, onClose }) {
 
   // Render a single assistant message bubble
   const renderAssistantContent = (msg) => {
-    if (msg.type === 'document' && msg.document) {
+    if ((msg.type === 'document' || msg.type === 'document_fetch') && msg.document) {
       const doc = msg.document;
       const statusColors = { Present: '#16a34a', Missing: '#dc2626', Expiring: '#d97706', Superseded: '#9333ea' };
       const statusBg    = { Present: '#f0fdf4', Missing: '#fef2f2', Expiring: '#fffbeb', Superseded: '#faf5ff' };
