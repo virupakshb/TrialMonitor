@@ -2824,11 +2824,11 @@ function CopilotPanel({ context, onClose }) {
     setInput('');
 
     const userMsg = { role: 'user', content: msg };
+    const history = messages.map(m => ({ role: m.role, content: m.content }));
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
