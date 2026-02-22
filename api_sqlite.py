@@ -1634,19 +1634,13 @@ def cra_copilot_chat(body: dict):
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return {
-            "type": "text",
-            "text": "CRA Copilot is not available — ANTHROPIC_API_KEY not configured.",
-            "document": None,
-            "table": None
-        }
-
     try:
         from anthropic import Anthropic as _Anthropic
     except ImportError as e:
         return {"type": "text", "text": f"CRA Copilot unavailable — anthropic library not installed: {e}", "document": None, "table": None}
+
+    # Let the Anthropic library find ANTHROPIC_API_KEY itself (same pattern as rules engine)
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
 
     # ── Build context from DB ──────────────────────────────────────────────
     with get_db() as conn:
@@ -1807,7 +1801,8 @@ ALWAYS respond in valid JSON with this exact structure:
 }}"""
 
     # ── Call LLM ────────────────────────────────────────────────────────────
-    client = _Anthropic(api_key=api_key)
+    # Pass api_key if found; Anthropic SDK also checks ANTHROPIC_API_KEY env var automatically
+    client = _Anthropic(api_key=api_key) if api_key else _Anthropic()
 
     messages = []
     # Add conversation history (last 6 messages)
