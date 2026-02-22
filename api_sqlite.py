@@ -20,7 +20,7 @@ import threading
 # Load .env FIRST before anything else reads environment variables
 from dotenv import load_dotenv
 _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
-load_dotenv(_env_path, override=True)
+load_dotenv(_env_path, override=False)
 
 # Add project root to path so rules_engine can be imported
 sys.path.insert(0, os.path.dirname(__file__))
@@ -1625,7 +1625,6 @@ def cra_copilot_chat(body: dict):
     Returns: { type, text, document, table }
     """
     import json as _json
-    from anthropic import Anthropic
 
     message = body.get('message', '').strip()
     site_id = body.get('site_id') or ''
@@ -1643,6 +1642,11 @@ def cra_copilot_chat(body: dict):
             "document": None,
             "table": None
         }
+
+    try:
+        from anthropic import Anthropic as _Anthropic
+    except ImportError as e:
+        return {"type": "text", "text": f"CRA Copilot unavailable — anthropic library not installed: {e}", "document": None, "table": None}
 
     # ── Build context from DB ──────────────────────────────────────────────
     with get_db() as conn:
@@ -1803,7 +1807,7 @@ ALWAYS respond in valid JSON with this exact structure:
 }}"""
 
     # ── Call LLM ────────────────────────────────────────────────────────────
-    client = Anthropic(api_key=api_key)
+    client = _Anthropic(api_key=api_key)
 
     messages = []
     # Add conversation history (last 6 messages)
@@ -1815,7 +1819,7 @@ ALWAYS respond in valid JSON with this exact structure:
 
     try:
         response = client.messages.create(
-            model="claude-haiku-4-5",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1500,
             system=system_prompt,
             messages=messages
@@ -1872,9 +1876,11 @@ ALWAYS respond in valid JSON with this exact structure:
         }
 
     except Exception as e:
+        import traceback
+        tb = traceback.format_exc()[-300:]
         return {
             "type": "text",
-            "text": f"I encountered an error processing your request. Please try again. ({str(e)[:100]})",
+            "text": f"Error: {type(e).__name__}: {str(e)[:200]}\n\nTrace: {tb}",
             "document": None,
             "table": None
         }
