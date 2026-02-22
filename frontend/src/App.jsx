@@ -2824,7 +2824,10 @@ function CopilotPanel({ context, onClose }) {
     setInput('');
 
     const userMsg = { role: 'user', content: msg };
-    const history = messages.map(m => ({ role: m.role, content: m.content }));
+    const history = messages.map(m => ({
+      role: m.role,
+      content: m.role === 'user' ? m.content : (m.text || ''),
+    }));
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
 
