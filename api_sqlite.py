@@ -963,9 +963,12 @@ def debug_env():
     """Show which env var keys exist (not values) — for diagnosing missing Railway vars"""
     keys = sorted(os.environ.keys())
     anthropic_related = [k for k in keys if 'anthropic' in k.lower() or 'api_key' in k.lower()]
+    # Show ALL key names so we can spot typos/casing issues
     return {
         "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "anthropic_key_length": len(os.environ.get("ANTHROPIC_API_KEY", "")),
         "anthropic_related_vars": anthropic_related,
+        "all_env_var_names": keys,
         "total_env_vars": len(keys),
     }
 
@@ -1651,8 +1654,21 @@ def cra_copilot_chat(body: dict):
     except ImportError as e:
         return {"type": "text", "text": f"CRA Copilot unavailable — anthropic library not installed: {e}", "document": None, "table": None}
 
-    # Let the Anthropic library find ANTHROPIC_API_KEY itself (same pattern as rules engine)
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    # Read key — try multiple approaches to handle Railway env var edge cases
+    api_key = (
+        os.environ.get("ANTHROPIC_API_KEY") or
+        os.environ.get("anthropic_api_key") or
+        os.environ.get("Anthropic_API_Key")
+    )
+    if not api_key:
+        all_keys = list(os.environ.keys())
+        ant_keys = [k for k in all_keys if 'anthrop' in k.lower() or 'api_key' in k.lower()]
+        return {
+            "type": "text",
+            "text": f"ANTHROPIC_API_KEY not found in environment. Anthropic-related vars found: {ant_keys}. Total env vars: {len(all_keys)}. Check Railway Variables tab.",
+            "document": None,
+            "table": None
+        }
 
     # ── Build context from DB ──────────────────────────────────────────────
     with get_db() as conn:
@@ -1813,8 +1829,7 @@ ALWAYS respond in valid JSON with this exact structure:
 }}"""
 
     # ── Call LLM ────────────────────────────────────────────────────────────
-    # Pass api_key if found; Anthropic SDK also checks ANTHROPIC_API_KEY env var automatically
-    client = _Anthropic(api_key=api_key) if api_key else _Anthropic()
+    client = _Anthropic(api_key=api_key)
 
     messages = []
     # Add conversation history (last 6 messages)
