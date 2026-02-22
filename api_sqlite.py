@@ -958,6 +958,18 @@ def get_usage():
     return get_usage_stats()
 
 
+@app.get("/api/debug/env")
+def debug_env():
+    """Show which env var keys exist (not values) — for diagnosing missing Railway vars"""
+    keys = sorted(os.environ.keys())
+    anthropic_related = [k for k in keys if 'anthropic' in k.lower() or 'api_key' in k.lower()]
+    return {
+        "anthropic_key_set": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "anthropic_related_vars": anthropic_related,
+        "total_env_vars": len(keys),
+    }
+
+
 @app.post("/api/usage/reset")
 def reset_usage():
     """Reset the session usage counter"""
