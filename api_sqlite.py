@@ -183,7 +183,7 @@ def _rag_retrieve(query: str, top_k: int = 2) -> str:
         import numpy as np
         from anthropic import Anthropic as _Ant
 
-        client = _Ant(api_key=api_key)
+        client = _Ant(api_key=api_key, timeout=8.0)
         resp = client.embeddings.create(
             model="voyage-3",
             input=[query],
@@ -2077,7 +2077,7 @@ ALWAYS respond in valid JSON with this exact structure (no markdown, no extra te
 }}"""
 
     # ── Call LLM ────────────────────────────────────────────────────────────
-    client = _Anthropic(api_key=api_key)
+    client = _Anthropic(api_key=api_key, timeout=25.0)
 
     messages = []
     # Add conversation history (last 6 messages)
@@ -2090,7 +2090,7 @@ ALWAYS respond in valid JSON with this exact structure (no markdown, no extra te
     try:
         response = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=1500,
+            max_tokens=800,
             system=system_prompt,
             messages=messages
         )
