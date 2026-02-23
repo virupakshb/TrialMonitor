@@ -359,6 +359,20 @@ CREATE TABLE IF NOT EXISTS visit_reports (
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS usage_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    endpoint TEXT NOT NULL,
+    method TEXT NOT NULL,
+    status_code INTEGER,
+    response_ms INTEGER,
+    message_text TEXT,
+    site_id TEXT,
+    timestamp TEXT DEFAULT (datetime('now'))
+);
 """
 
 cur.executescript(schema_sql)

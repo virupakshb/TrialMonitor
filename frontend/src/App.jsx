@@ -1,6 +1,73 @@
 import React, { useState } from 'react';
 import './App.css';
 
+// ── Session ID — generated once per browser tab, persisted in sessionStorage ──
+const _getSessionId = () => {
+  try {
+    let id = sessionStorage.getItem('cra_session_id');
+    if (!id) { id = crypto.randomUUID(); sessionStorage.setItem('cra_session_id', id); }
+    return id;
+  } catch { return 'unknown'; }
+};
+const SESSION_ID = _getSessionId();
+
+// ── Shared UI Components ─────────────────────────────────────────────────────
+
+/** Reusable button with variant + size system */
+function Btn({ variant = 'primary', size = 'md', style: extraStyle, children, ...props }) {
+  const base = {
+    border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+    fontFamily: 'var(--font-family)', fontWeight: 600,
+    transition: 'opacity 0.15s, box-shadow 0.15s', display: 'inline-flex',
+    alignItems: 'center', gap: '4px', whiteSpace: 'nowrap',
+  };
+  const variants = {
+    primary:   { background: 'var(--color-accent)',   color: 'white' },
+    secondary: { background: 'white', color: 'var(--color-accent)', border: '1px solid var(--color-accent)' },
+    ghost:     { background: 'transparent', color: 'var(--color-neutral-500)' },
+    danger:    { background: 'var(--color-danger)',   color: 'white' },
+    success:   { background: 'var(--color-success)',  color: 'white' },
+    navy:      { background: 'var(--color-primary)',  color: 'white' },
+  };
+  const sizes = {
+    xs: { padding: '2px 8px',   fontSize: '11px' },
+    sm: { padding: '4px 10px',  fontSize: '12px' },
+    md: { padding: '6px 14px',  fontSize: '13px' },
+    lg: { padding: '9px 20px',  fontSize: '14px' },
+  };
+  return (
+    <button
+      style={{ ...base, ...variants[variant] || variants.primary, ...sizes[size] || sizes.md, ...extraStyle }}
+      onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; }}
+      onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Toast notification container — rendered at App root level */
+function ToastContainer({ toasts }) {
+  const colours = { success: 'var(--color-success)', error: 'var(--color-danger)', info: 'var(--color-accent)' };
+  return (
+    <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9999,
+      display: 'flex', flexDirection: 'column', gap: 8, pointerEvents: 'none' }}>
+      {toasts.map(t => (
+        <div key={t.id} style={{
+          background: colours[t.type] || colours.info, color: 'white',
+          padding: '10px 16px', borderRadius: 'var(--radius-md)',
+          fontSize: 'var(--font-size-base)', fontWeight: 500,
+          boxShadow: 'var(--shadow-lg)', minWidth: 220, maxWidth: 340,
+          fontFamily: 'var(--font-family)',
+        }}>
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Live API Usage Banner
 function UsageBanner() {
   const [usage, setUsage] = useState(null);
@@ -71,9 +138,17 @@ function App() {
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState({ site_id: '', visit_id: null });
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = React.useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts(t => [...t, { id, message, type }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+  }, []);
 
   return (
     <div className="App">
+      <ToastContainer toasts={toasts} />
       <Header currentView={currentView} setCurrentView={setCurrentView} chatOpen={chatOpen} setChatOpen={setChatOpen} />
       <UsageBanner />
       <div style={{ display: 'flex', position: 'relative' }}>
@@ -100,6 +175,7 @@ function App() {
               onNavigate={setCurrentView}
               onSelectSubject={(id) => { setSelectedSubject(id); setCurrentView('subject-detail'); }}
               onContextChange={setChatContext}
+              showToast={showToast}
             />
           )}
         </main>
@@ -2122,7 +2198,7 @@ const countryFlag = (country) => {
   return map[country] || '🌍';
 };
 
-function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange }) {
+function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange, showToast }) {
   const [viewLevel, setViewLevel] = useState('study');       // 'study' | 'site' | 'visit'
   const [selectedSiteId, setSelectedSiteId] = useState(null);
   const [selectedVisitId, setSelectedVisitId] = useState(null);
@@ -2393,7 +2469,7 @@ function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange }) {
 
         {/* Visit Detail Panel */}
         {selectedVisitId && (
-          <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} />
+          <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} showToast={showToast} />
         )}
       </div>
     );
@@ -2403,7 +2479,7 @@ function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange }) {
   if (viewLevel === 'visit') return (
     <div style={{ padding:'24px', maxWidth:'1200px', margin:'0 auto' }}>
       <Breadcrumb/>
-      <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} />
+      <MonitoringVisitDetail visitId={selectedVisitId} onSelectSubject={onSelectSubject} onRefresh={refreshSite} showToast={showToast} />
     </div>
   );
 
@@ -2841,7 +2917,7 @@ function CopilotPanel({ context, onClose }) {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Session-ID': SESSION_ID },
         body: JSON.stringify({
           message: msg,
           site_id: context.site_id || '',

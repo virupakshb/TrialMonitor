@@ -6,7 +6,7 @@ Sponsor: NexaVance Therapeutics Inc.
 Local development API using SQLite database
 """
 
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -214,6 +214,46 @@ def startup_event():
     """Build RAG store in background thread so startup is non-blocking."""
     t = threading.Thread(target=_build_rag_store, daemon=True)
     t.start()
+
+# ── Usage logging middleware ─────────────────────────────────────────────────
+@app.middleware("http")
+async def usage_logging_middleware(request: Request, call_next):
+    """Log every API request to usage_logs table for usage analytics."""
+    import time as _time
+    start = _time.time()
+    response = await call_next(request)
+    ms = int((_time.time() - start) * 1000)
+
+    endpoint = request.url.path
+    # Skip static assets, favicon and health-check-style paths
+    _skip_prefixes = ("/assets/", "/favicon", "/_vite", "/@")
+    if not any(endpoint.startswith(s) for s in _skip_prefixes):
+        try:
+            session_id = request.headers.get("X-Session-ID", "")
+            # X-Forwarded-For is set by Railway's proxy; fall back to direct client IP
+            ip = (request.headers.get("X-Forwarded-For", "") or "").split(",")[0].strip()
+            if not ip and request.client:
+                ip = request.client.host
+            ua = request.headers.get("User-Agent", "")[:200]
+            method = request.method
+            status = response.status_code
+            # message_text / site_id set by /api/chat endpoint via request.state
+            message_text = getattr(request.state, "chat_message", None)
+            site_id_log = getattr(request.state, "chat_site_id", None)
+
+            with get_db() as conn:
+                conn.execute("""
+                    INSERT INTO usage_logs
+                        (session_id, ip_address, user_agent, endpoint, method,
+                         status_code, response_ms, message_text, site_id, timestamp)
+                    VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))
+                """, (session_id, ip[:50], ua, endpoint, method,
+                      status, ms, message_text, site_id_log))
+                conn.commit()
+        except Exception:
+            pass  # Never let logging failure affect the response
+
+    return response
 
 # CORS middleware
 app.add_middleware(
@@ -1799,7 +1839,7 @@ def serve_tmf_study_file(filename: str):
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.post("/api/chat")
-def cra_copilot_chat(body: dict):
+def cra_copilot_chat(body: dict, request: Request):
     """
     CRA Copilot — context-aware AI assistant.
     Receives: { message, site_id, visit_id, history }
@@ -1811,6 +1851,10 @@ def cra_copilot_chat(body: dict):
     site_id = body.get('site_id') or ''
     visit_id = body.get('visit_id')
     history = body.get('history', [])
+
+    # Expose message + site_id to usage logging middleware via request.state
+    request.state.chat_message = message[:500] if message else None
+    request.state.chat_site_id = site_id or None
 
     if not message:
         raise HTTPException(status_code=400, detail="Message is required")
