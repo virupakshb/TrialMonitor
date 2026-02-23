@@ -42,6 +42,13 @@ CREATE TABLE protocol_info (
     investigational_product TEXT,
     primary_objective TEXT,
     primary_endpoint TEXT,
+    secondary_endpoints TEXT,
+    key_inclusion_criteria TEXT,
+    key_exclusion_criteria TEXT,
+    dosing_regimen TEXT,
+    visit_schedule_summary TEXT,
+    ae_reporting_rules TEXT,
+    randomisation_ratio TEXT,
     planned_sample_size INTEGER,
     study_start_date TEXT,
     estimated_completion_date TEXT,
@@ -425,8 +432,10 @@ count = insert_data('protocol_info', part1_data['protocol_info'], [
     'protocol_number', 'protocol_name', 'short_title', 'sponsor_name',
     'sponsor_address', 'phase', 'indication', 'study_type', 'study_design',
     'therapeutic_area', 'investigational_product', 'primary_objective',
-    'primary_endpoint', 'planned_sample_size', 'study_start_date',
-    'estimated_completion_date'
+    'primary_endpoint', 'secondary_endpoints', 'key_inclusion_criteria',
+    'key_exclusion_criteria', 'dosing_regimen', 'visit_schedule_summary',
+    'ae_reporting_rules', 'randomisation_ratio',
+    'planned_sample_size', 'study_start_date', 'estimated_completion_date'
 ])
 print(f"   ✓ Protocol info: {count} records")
 

@@ -2802,14 +2802,21 @@ function CopilotPanel({ context, onClose }) {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = React.useRef(null);
 
-  const siteLabel = context.site_id ? `Site ${context.site_id}` : 'No site selected';
+  const siteLabel = context.site_id ? `Site ${context.site_id}` : 'Study Level';
+  const siteIcon = context.site_id ? '📍' : '📋';
 
-  const starters = [
+  const starters = context.site_id ? [
     'Show delegation log',
-    'What are open findings for this site?',
+    'What are the open findings for this site?',
     'What do I need for my next visit?',
     'Check TMF compliance',
-    'What is the protocol primary endpoint?',
+    'What are the exclusion criteria?',
+  ] : [
+    'Which sites have critical findings?',
+    'What is the dosing regimen?',
+    'What are the key exclusion criteria?',
+    'What is the primary endpoint?',
+    'Summarise the visit schedule',
   ];
 
   React.useEffect(() => {
@@ -2957,7 +2964,7 @@ function CopilotPanel({ context, onClose }) {
         <div>
           <div style={{ fontWeight: 700, fontSize: '15px' }}>💬 CRA Copilot</div>
           <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '2px' }}>
-            📍 {siteLabel} · NVX-1218.22
+            {siteIcon} {siteLabel} · NVX-1218.22
           </div>
         </div>
         <button
@@ -2981,7 +2988,9 @@ function CopilotPanel({ context, onClose }) {
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>🤖</div>
               <div style={{ fontWeight: 600, color: '#1e3a5f', fontSize: '14px' }}>Hi, I'm your CRA Copilot!</div>
               <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>
-                Ask me anything about protocol, site data, findings, or documents.
+                {context.site_id
+                  ? 'Ask me about site data, findings, documents, or protocol.'
+                  : 'No site selected — I can answer study-level and protocol questions.'}
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

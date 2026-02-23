@@ -28,11 +28,192 @@ sys.path.insert(0, os.path.dirname(__file__))
 # Shared state for batch job progress
 _batch_jobs: Dict[str, Any] = {}
 
+# ============================================================================
+# RAG MODULE — Protocol document chunks + in-memory embeddings
+# ============================================================================
+# Loaded once at startup; used by /api/chat for deep protocol questions.
+
+_rag_store: Dict[str, Any] = {
+    "chunks": [],       # list of {"section": str, "text": str}
+    "embeddings": None, # numpy array (N, D)
+    "ready": False,
+}
+
+def _extract_protocol_chunks() -> list:
+    """
+    Extract text chunks from protocol_synopsis_v3.pdf.
+    Falls back to structured DB fields if PDF cannot be read.
+    Returns list of {"section": str, "text": str}.
+    """
+    chunks = []
+    pdf_path = os.path.join(os.path.dirname(__file__), "tmf_documents", "study", "protocol_synopsis_v3.pdf")
+
+    # Try PDF extraction first
+    if os.path.exists(pdf_path):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(pdf_path)
+            full_text = "\n".join(page.extract_text() or "" for page in reader.pages)
+
+            # Split into sections by detecting uppercase section headers
+            import re
+            # Split on lines that look like section headers (all caps, short)
+            section_pattern = re.compile(r'\n([A-Z][A-Z\s/\-]{4,50})\n')
+            parts = section_pattern.split(full_text)
+
+            if len(parts) >= 3:
+                # parts = [pre-text, header1, body1, header2, body2, ...]
+                for i in range(1, len(parts) - 1, 2):
+                    header = parts[i].strip()
+                    body = parts[i + 1].strip() if i + 1 < len(parts) else ""
+                    if body and len(body) > 30:
+                        chunks.append({"section": header, "text": f"{header}\n{body}"})
+            else:
+                # Couldn't split by headers — use whole document as one chunk
+                chunks.append({"section": "Protocol Synopsis", "text": full_text})
+
+            if chunks:
+                return chunks
+        except Exception:
+            pass  # Fall through to DB fallback
+
+    # Fallback: use structured DB fields as chunks
+    try:
+        import sqlite3 as _sq
+        _db = os.path.join(os.path.dirname(__file__), 'clinical_trial.db')
+        if os.path.exists(_db):
+            con = _sq.connect(_db)
+            cur = con.cursor()
+            cur.execute("""
+                SELECT protocol_number, protocol_name, phase, indication, sponsor_name,
+                       primary_objective, primary_endpoint, secondary_endpoints,
+                       key_inclusion_criteria, key_exclusion_criteria,
+                       dosing_regimen, visit_schedule_summary, ae_reporting_rules,
+                       randomisation_ratio, planned_sample_size
+                FROM protocol_info LIMIT 1
+            """)
+            row = cur.fetchone()
+            con.close()
+            if row:
+                cols = ["protocol_number","protocol_name","phase","indication","sponsor_name",
+                        "primary_objective","primary_endpoint","secondary_endpoints",
+                        "key_inclusion_criteria","key_exclusion_criteria",
+                        "dosing_regimen","visit_schedule_summary","ae_reporting_rules",
+                        "randomisation_ratio","planned_sample_size"]
+                p = dict(zip(cols, row))
+                section_map = [
+                    ("Protocol Overview", f"Protocol: {p['protocol_number']} — {p['protocol_name']}\nPhase: {p['phase']} | Indication: {p['indication']} | Sponsor: {p['sponsor_name']}\nPlanned Sample Size: {p['planned_sample_size']}"),
+                    ("Primary and Secondary Endpoints", f"Primary Objective: {p['primary_objective']}\nPrimary Endpoint: {p['primary_endpoint']}\nSecondary Endpoints: {p['secondary_endpoints']}"),
+                    ("Inclusion Criteria", f"Key Inclusion Criteria:\n{p['key_inclusion_criteria']}"),
+                    ("Exclusion Criteria", f"Key Exclusion Criteria:\n{p['key_exclusion_criteria']}"),
+                    ("Dosing Regimen", f"Dosing Regimen:\n{p['dosing_regimen']}"),
+                    ("Visit Schedule", f"Visit Schedule:\n{p['visit_schedule_summary']}"),
+                    ("AE Reporting Rules", f"Adverse Event Reporting Rules:\n{p['ae_reporting_rules']}"),
+                    ("Randomisation", f"Randomisation:\n{p['randomisation_ratio']}"),
+                ]
+                for section, text in section_map:
+                    if text and text.strip():
+                        chunks.append({"section": section, "text": text})
+    except Exception:
+        pass
+
+    return chunks
+
+
+def _cosine_similarity(a, b):
+    """Compute cosine similarity between two 1-D numpy arrays."""
+    import numpy as np
+    denom = (np.linalg.norm(a) * np.linalg.norm(b))
+    if denom == 0:
+        return 0.0
+    return float(np.dot(a, b) / denom)
+
+
+def _build_rag_store():
+    """
+    Build the in-memory RAG store at startup:
+    1. Extract protocol chunks from PDF (or DB fallback)
+    2. Embed each chunk using Anthropic embeddings
+    Store results in _rag_store for use during chat.
+    """
+    global _rag_store
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return  # Can't embed without key; RAG stays disabled
+
+    try:
+        import numpy as np
+        from anthropic import Anthropic as _Ant
+
+        chunks = _extract_protocol_chunks()
+        if not chunks:
+            return
+
+        client = _Ant(api_key=api_key)
+        embeddings = []
+        for chunk in chunks:
+            resp = client.embeddings.create(
+                model="voyage-3",
+                input=[chunk["text"]],
+            )
+            embeddings.append(resp.embeddings[0].embedding)
+
+        _rag_store["chunks"] = chunks
+        _rag_store["embeddings"] = np.array(embeddings, dtype="float32")
+        _rag_store["ready"] = True
+        print(f"   ✓ RAG store built: {len(chunks)} protocol chunks embedded")
+    except Exception as e:
+        print(f"   ⚠ RAG store build failed (non-fatal): {e}")
+
+
+def _rag_retrieve(query: str, top_k: int = 2) -> str:
+    """
+    Retrieve the top-k most relevant protocol chunks for a query.
+    Returns concatenated text of best matching chunks.
+    Returns empty string if RAG store not ready.
+    """
+    if not _rag_store["ready"]:
+        return ""
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return ""
+
+    try:
+        import numpy as np
+        from anthropic import Anthropic as _Ant
+
+        client = _Ant(api_key=api_key)
+        resp = client.embeddings.create(
+            model="voyage-3",
+            input=[query],
+        )
+        q_emb = np.array(resp.embeddings[0].embedding, dtype="float32")
+
+        store_embs = _rag_store["embeddings"]
+        scores = [_cosine_similarity(q_emb, store_embs[i]) for i in range(len(store_embs))]
+        top_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:top_k]
+
+        retrieved = []
+        for idx in top_indices:
+            if scores[idx] > 0.3:  # Minimum relevance threshold
+                retrieved.append(_rag_store["chunks"][idx]["text"])
+
+        return "\n\n---\n\n".join(retrieved)
+    except Exception:
+        return ""
+
 app = FastAPI(
     title="Clinical Trial Monitoring API",
     description="API for NVX-1218.22 Clinical Trial Data (SQLite Version)",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+def startup_event():
+    """Build RAG store in background thread so startup is non-blocking."""
+    t = threading.Thread(target=_build_rag_store, daemon=True)
+    t.start()
 
 # CORS middleware
 app.add_middleware(
@@ -1652,10 +1833,13 @@ def cra_copilot_chat(body: dict):
     with get_db() as conn:
         cur = conn.cursor()
 
-        # Protocol
+        # Protocol — full rich fields
         cur.execute("""
             SELECT protocol_number, protocol_name, phase, indication, sponsor_name,
-                   primary_objective, primary_endpoint, planned_sample_size,
+                   primary_objective, primary_endpoint, secondary_endpoints,
+                   key_inclusion_criteria, key_exclusion_criteria,
+                   dosing_regimen, visit_schedule_summary, ae_reporting_rules,
+                   randomisation_ratio, planned_sample_size,
                    study_start_date, estimated_completion_date
             FROM protocol_info LIMIT 1
         """)
@@ -1663,7 +1847,7 @@ def cra_copilot_chat(body: dict):
 
         # Site info
         site_info = {}
-        site_subjects = []
+        available_tmf_docs = []
         open_findings_list = []
         tmf_issues = []
         upcoming_visit = None
@@ -1710,18 +1894,19 @@ def cra_copilot_chat(body: dict):
             """, (site_id,))
             tmf_issues = [dict_from_row(r) for r in cur.fetchall()]
 
-            # Available TMF documents
+            # Available TMF documents (for document fetch intent)
             cur.execute("""
                 SELECT document_type, title, version, file_path, status
                 FROM tmf_documents WHERE site_id = ? AND file_path IS NOT NULL
             """, (site_id,))
-            site_subjects = [dict_from_row(r) for r in cur.fetchall()]
+            available_tmf_docs = [dict_from_row(r) for r in cur.fetchall()]
 
-        # All sites summary
+        # All sites summary (always loaded — supports study-wide mode)
         cur.execute("""
             SELECT s.site_id, s.site_name, s.country,
                 COUNT(DISTINCT subj.subject_id) as enrolled,
-                SUM(CASE WHEN vf.status='Open' THEN 1 ELSE 0 END) as open_findings
+                SUM(CASE WHEN vf.status='Open' THEN 1 ELSE 0 END) as open_findings,
+                SUM(CASE WHEN vf.status='Open' AND vf.severity='Critical' THEN 1 ELSE 0 END) as critical_findings
             FROM sites s
             LEFT JOIN subjects subj ON subj.site_id = s.site_id
             LEFT JOIN monitoring_visits mv ON mv.site_id = s.site_id
@@ -1731,76 +1916,117 @@ def cra_copilot_chat(body: dict):
         """)
         all_sites_summary = [dict_from_row(r) for r in cur.fetchall()]
 
+    # ── RAG: retrieve relevant protocol chunks for this query ────────────────
+    rag_context = _rag_retrieve(message, top_k=2)
+
     # ── Build system prompt ──────────────────────────────────────────────────
     context_parts = []
-    context_parts.append(f"""PROTOCOL: {proto.get('protocol_number')} -- {proto.get('protocol_name')}
+
+    # Structured protocol fields (Layer 1 — always fast)
+    context_parts.append(f"""PROTOCOL: {proto.get('protocol_number')} — {proto.get('protocol_name')}
 Phase: {proto.get('phase')} | Indication: {proto.get('indication')}
 Sponsor: {proto.get('sponsor_name')}
-Primary Objective: {proto.get('primary_objective','')}
-Primary Endpoint: {proto.get('primary_endpoint','')}
-Planned Sample Size: {proto.get('planned_sample_size')}
-Study Start: {proto.get('study_start_date')} | Est. Completion: {proto.get('estimated_completion_date')}""")
+Study Design: Randomized, Double-Blind, Placebo-Controlled | Randomisation: {proto.get('randomisation_ratio','')}
+Planned Sample Size: {proto.get('planned_sample_size')} | Start: {proto.get('study_start_date')} | Est. Completion: {proto.get('estimated_completion_date')}
 
+PRIMARY OBJECTIVE: {proto.get('primary_objective','')}
+PRIMARY ENDPOINT: {proto.get('primary_endpoint','')}
+SECONDARY ENDPOINTS: {proto.get('secondary_endpoints','')}
+
+KEY INCLUSION CRITERIA:
+{proto.get('key_inclusion_criteria','')}
+
+KEY EXCLUSION CRITERIA:
+{proto.get('key_exclusion_criteria','')}
+
+DOSING REGIMEN:
+{proto.get('dosing_regimen','')}
+
+VISIT SCHEDULE:
+{proto.get('visit_schedule_summary','')}
+
+AE REPORTING RULES:
+{proto.get('ae_reporting_rules','')}""")
+
+    # RAG retrieved chunks (Layer 2 — deeper protocol content from PDF)
+    if rag_context:
+        context_parts.append(f"\nADDITIONAL PROTOCOL DETAIL (from protocol document):\n{rag_context}")
+
+    # Site-specific context
     if site_id and site_info:
         context_parts.append(f"""
-CURRENT SITE CONTEXT: Site {site_id} -- {site_info.get('site_name')}, {site_info.get('city','')}, {site_info.get('country','')}
+CURRENT SITE CONTEXT: Site {site_id} — {site_info.get('site_name')}, {site_info.get('city','')}, {site_info.get('country','')}
 Principal Investigator: {site_info.get('principal_investigator')}
 Site Coordinator: {site_info.get('site_coordinator')}
-Enrolled: {site_info.get('actual_enrollment')} / {site_info.get('planned_enrollment')} planned
-Active Subjects: {site_info.get('active_subjects')}""")
+Enrolled: {site_info.get('actual_enrollment')} / {site_info.get('planned_enrollment')} planned | Active Subjects: {site_info.get('active_subjects')}""")
+    else:
+        context_parts.append("\nCURRENT CONTEXT: Study-level (no specific site selected)")
 
     if open_findings_list:
         findings_text = "\n".join([
-            f"  - [{f['severity']}] {f['finding_type']} | Subject {f.get('subject_id','N/A')} | {f['description'][:80]} | Due: {f.get('due_date','TBD')}"
+            f"  - [{f['severity']}] {f['finding_type']} | Subject {f.get('subject_id','N/A')} | {f['description']} | Due: {f.get('due_date','TBD')}"
             for f in open_findings_list
         ])
         context_parts.append(f"\nOPEN FINDINGS ({len(open_findings_list)} total):\n{findings_text}")
-    else:
-        context_parts.append("\nOPEN FINDINGS: None")
+    elif site_id:
+        context_parts.append("\nOPEN FINDINGS: None for this site")
 
     if upcoming_visit:
-        context_parts.append(f"\nNEXT VISIT: {upcoming_visit.get('visit_label')} planned {upcoming_visit.get('planned_date')}, CRA: {upcoming_visit.get('cra_name')}, Status: {upcoming_visit.get('status')}")
+        context_parts.append(f"\nNEXT MONITORING VISIT: {upcoming_visit.get('visit_label')} planned {upcoming_visit.get('planned_date')}, CRA: {upcoming_visit.get('cra_name')}, Status: {upcoming_visit.get('status')}")
 
     if tmf_issues:
         tmf_text = "\n".join([
-            f"  - [{t['status']}] {t['document_type']} ({t['category']}) | {t.get('notes','')[:60]}"
+            f"  - [{t['status']}] {t['document_type']} ({t['category']}) | {t.get('notes','')[:80]}"
             for t in tmf_issues
         ])
         context_parts.append(f"\nTMF ISSUES ({len(tmf_issues)} documents need attention):\n{tmf_text}")
 
-    if site_subjects:
+    if available_tmf_docs:
         doc_list = "\n".join([
-            f"  - {d['document_type']}: \"{d['title']}\" ({d['status']}) | file: {d.get('file_path','')}"
-            for d in site_subjects
+            f"  - {d['document_type']}: \"{d['title']}\" v{d.get('version','')} ({d['status']}) | file: {d.get('file_path','')}"
+            for d in available_tmf_docs
         ])
-        context_parts.append(f"\nAVAILABLE TMF DOCUMENTS (can be fetched):\n{doc_list}")
+        context_parts.append(f"\nAVAILABLE TMF DOCUMENTS (can be fetched on request):\n{doc_list}")
 
     all_sites_text = "\n".join([
-        f"  Site {s['site_id']}: {s['site_name']} ({s['country']}) -- {s['enrolled']} enrolled, {s['open_findings'] or 0} open findings"
+        f"  Site {s['site_id']}: {s['site_name']} ({s['country']}) — {s['enrolled']} enrolled, {s['open_findings'] or 0} open findings ({s['critical_findings'] or 0} critical)"
         for s in all_sites_summary
     ])
     context_parts.append(f"\nALL SITES SUMMARY:\n{all_sites_text}")
 
+    # Build mode label for prompt
+    mode_label = f"Site {site_id} — {site_info.get('site_name','')}" if (site_id and site_info) else "Study Level (all sites)"
+
     system_prompt = f"""You are CRA Copilot, an expert AI assistant for Clinical Research Associates (CRAs) working on clinical trial NVX-1218.22 (NovaPlex-450 in Advanced NSCLC).
+Current context: {mode_label}
 
 You have real-time access to the following trial data:
 
 {"".join(context_parts)}
 
-INSTRUCTIONS:
-1. Answer questions about the protocol, site operations, findings, and TMF documents accurately using the data above.
-2. If asked to show/fetch/display a document (delegation log, IRB approval, ICF, CV, GCP cert, lab cert, etc.), respond with intent "document_fetch" and identify which document_type from the available TMF documents list.
-3. If the question is about data (findings, subjects, enrollment), respond with intent "data_answer" and include a data_table if appropriate.
-4. If the question is about protocol details (dosing, eligibility, endpoints, visit schedule), respond with intent "protocol_qa".
-5. If the question asks for a summary of what to do/prepare, respond with intent "action_summary".
-6. Always be concise, accurate, and professional. Use the actual data provided.
-7. For document requests, extract the file_path from the AVAILABLE TMF DOCUMENTS list and include it exactly in your response.
+EXAMPLE INTERACTIONS (follow these patterns exactly):
+Q: "What are the exclusion criteria?"
+A: {{"intent":"protocol_qa","text":"The key exclusion criteria for NVX-1218.22 are: 1. Prior immunotherapy...","document_type":null,"file_path":null,"document_title":null,"data_table":null}}
 
-ALWAYS respond in valid JSON with this exact structure:
+Q: "Show me the delegation log"
+A: {{"intent":"document_fetch","text":"Fetching the Site Delegation Log...","document_type":"Delegation Log","file_path":"tmf_documents/site_101/delegation_log_v1.pdf","document_title":"Site Delegation Log v1.0","data_table":null}}
+
+Q: "What are the open findings?"
+A: {{"intent":"data_answer","text":"Here are the open findings for this site:","document_type":null,"file_path":null,"document_title":null,"data_table":{{"headers":["Severity","Type","Subject","Description","Due Date"],"rows":[["Critical","Protocol Deviation","102-003","ICF re-consent not obtained","2025-03-01"]]}}}}
+
+INSTRUCTIONS:
+1. Answer protocol questions (dosing, eligibility, endpoints, visit schedule, AE rules, randomisation) using the structured protocol data AND additional protocol detail above. Be specific and cite actual values.
+2. For document fetch requests, use intent "document_fetch" and extract file_path exactly from AVAILABLE TMF DOCUMENTS.
+3. For data questions (findings, enrollment, subjects), use intent "data_answer" with a data_table.
+4. For study-wide questions when no site selected, use ALL SITES SUMMARY to answer.
+5. If asked about a topic not in your context, say so clearly and suggest where to find it.
+6. Always be concise, accurate, and professional.
+
+ALWAYS respond in valid JSON with this exact structure (no markdown, no extra text):
 {{
   "intent": "document_fetch|data_answer|protocol_qa|action_summary",
-  "text": "Your response text here (conversational, professional)",
-  "document_type": "exact document_type string if intent=document_fetch, else null",
+  "text": "Your response text here",
+  "document_type": "exact document_type if intent=document_fetch, else null",
   "file_path": "exact file_path from TMF documents list if intent=document_fetch, else null",
   "document_title": "document title if intent=document_fetch, else null",
   "data_table": null or {{"headers": ["col1","col2"], "rows": [["val1","val2"]]}}
