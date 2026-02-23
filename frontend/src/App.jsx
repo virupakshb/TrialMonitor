@@ -2788,7 +2788,6 @@ function CopilotPanel({ context, onClose }) {
     'Check TMF compliance',
     'What are the exclusion criteria?',
   ] : [
-    'Which sites have critical findings?',
     'What is the dosing regimen?',
     'What are the key exclusion criteria?',
     'What is the primary endpoint?',
