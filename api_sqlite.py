@@ -2091,128 +2091,141 @@ def cra_copilot_chat(body: dict, request: Request):
         """)
         all_sites_summary = [dict_from_row(r) for r in cur.fetchall()]
 
-    # ── RAG: retrieve relevant protocol chunks for this query ────────────────
-    rag_context = _rag_retrieve(message, top_k=2)
+    # ── Intent routing: classify question to decide what context to include ──
+    # This avoids sending ~2,000 tokens of irrelevant context on every call.
+    msg_lower = message.lower()
 
-    # ── Build system prompt ──────────────────────────────────────────────────
+    _is_data_q = any(k in msg_lower for k in [
+        'finding', 'enrollment', 'enrolled', 'subject', 'open', 'tmf',
+        'document', 'missing', 'expiring', 'compliance', 'next visit',
+        'upcoming', 'monitoring visit', 'cra', 'report', 'delegation',
+        'show me', 'fetch', 'get me', 'status'
+    ])
+    _is_protocol_q = any(k in msg_lower for k in [
+        'dosing', 'dose', 'regimen', 'criteria', 'endpoint', 'objective',
+        'schedule', 'randomis', 'eligib', 'exclusion', 'inclusion',
+        'ae report', 'adverse', 'primary', 'secondary', 'phase', 'arm',
+        'treatment', 'placebo', 'sample size', 'indication', 'summarise',
+        'summarize', 'visit schedule', 'who can', 'who cannot'
+    ])
+    # Default to protocol if unclear
+    if not _is_data_q and not _is_protocol_q:
+        _is_protocol_q = True
+
+    # RAG only helps for deep protocol questions — skip for data/site questions
+    _need_rag = _is_protocol_q and not _is_data_q
+    rag_context = _rag_retrieve(message, top_k=2) if _need_rag else ""
+
+    # ── Build system prompt (only include what's relevant) ───────────────────
     context_parts = []
 
-    # Structured protocol fields (Layer 1 — always fast)
-    context_parts.append(f"""PROTOCOL: {proto.get('protocol_number')} — {proto.get('protocol_name')}
-Phase: {proto.get('phase')} | Indication: {proto.get('indication')}
-Sponsor: {proto.get('sponsor_name')}
-Study Design: Randomized, Double-Blind, Placebo-Controlled | Randomisation: {proto.get('randomisation_ratio','')}
-Planned Sample Size: {proto.get('planned_sample_size')} | Start: {proto.get('study_start_date')} | Est. Completion: {proto.get('estimated_completion_date')}
+    # Protocol header — always included (compact, ~120 tokens)
+    context_parts.append(
+        f"PROTOCOL: {proto.get('protocol_number')} — {proto.get('protocol_name')}\n"
+        f"Phase: {proto.get('phase')} | Indication: {proto.get('indication')} | "
+        f"Sponsor: {proto.get('sponsor_name')}\n"
+        f"Randomisation: {proto.get('randomisation_ratio','')} | "
+        f"N={proto.get('planned_sample_size')} | "
+        f"Start: {proto.get('study_start_date')} | Est. completion: {proto.get('estimated_completion_date')}"
+    )
 
-PRIMARY OBJECTIVE: {proto.get('primary_objective','')}
-PRIMARY ENDPOINT: {proto.get('primary_endpoint','')}
-SECONDARY ENDPOINTS: {proto.get('secondary_endpoints','')}
+    # Full protocol body — only for protocol questions (~600 tokens)
+    if _is_protocol_q:
+        context_parts.append(
+            f"\nPRIMARY OBJECTIVE: {proto.get('primary_objective','')}"
+            f"\nPRIMARY ENDPOINT: {proto.get('primary_endpoint','')}"
+            f"\nSECONDARY ENDPOINTS: {proto.get('secondary_endpoints','')}"
+            f"\n\nKEY INCLUSION CRITERIA:\n{proto.get('key_inclusion_criteria','')}"
+            f"\n\nKEY EXCLUSION CRITERIA:\n{proto.get('key_exclusion_criteria','')}"
+            f"\n\nDOSING REGIMEN:\n{proto.get('dosing_regimen','')}"
+            f"\n\nVISIT SCHEDULE:\n{proto.get('visit_schedule_summary','')}"
+            f"\n\nAE REPORTING RULES:\n{proto.get('ae_reporting_rules','')}"
+        )
 
-KEY INCLUSION CRITERIA:
-{proto.get('key_inclusion_criteria','')}
-
-KEY EXCLUSION CRITERIA:
-{proto.get('key_exclusion_criteria','')}
-
-DOSING REGIMEN:
-{proto.get('dosing_regimen','')}
-
-VISIT SCHEDULE:
-{proto.get('visit_schedule_summary','')}
-
-AE REPORTING RULES:
-{proto.get('ae_reporting_rules','')}""")
-
-    # RAG retrieved chunks (Layer 2 — deeper protocol content from PDF)
+    # RAG chunks — only for deep protocol questions (~300 tokens max)
     if rag_context:
         context_parts.append(f"\nADDITIONAL PROTOCOL DETAIL (from protocol document):\n{rag_context}")
 
-    # Site-specific context
+    # Site context — only when a site is selected
     if site_id and site_info:
-        context_parts.append(f"""
-CURRENT SITE CONTEXT: Site {site_id} — {site_info.get('site_name')}, {site_info.get('city','')}, {site_info.get('country','')}
-Principal Investigator: {site_info.get('principal_investigator')}
-Site Coordinator: {site_info.get('site_coordinator')}
-Enrolled: {site_info.get('actual_enrollment')} / {site_info.get('planned_enrollment')} planned | Active Subjects: {site_info.get('active_subjects')}""")
+        context_parts.append(
+            f"\nCURRENT SITE: Site {site_id} — {site_info.get('site_name')}, "
+            f"{site_info.get('city','')}, {site_info.get('country','')}\n"
+            f"PI: {site_info.get('principal_investigator')} | "
+            f"Coordinator: {site_info.get('site_coordinator')}\n"
+            f"Enrolled: {site_info.get('actual_enrollment')}/{site_info.get('planned_enrollment')} | "
+            f"Active: {site_info.get('active_subjects')}"
+        )
     else:
-        context_parts.append("\nCURRENT CONTEXT: Study-level (no specific site selected)")
+        context_parts.append("\nCONTEXT: Study-level (no specific site selected)")
 
+    # Open findings — always include when site selected (core CRA data)
     if open_findings_list:
         findings_text = "\n".join([
-            f"  - [{f['severity']}] {f['finding_type']} | Subject {f.get('subject_id','N/A')} | {f['description']} | Due: {f.get('due_date','TBD')}"
+            f"  [{f['severity']}] {f['finding_type']} | Subj {f.get('subject_id','N/A')} | {f['description']} | Due: {f.get('due_date','TBD')}"
             for f in open_findings_list
         ])
-        context_parts.append(f"\nOPEN FINDINGS ({len(open_findings_list)} total):\n{findings_text}")
+        context_parts.append(f"\nOPEN FINDINGS ({len(open_findings_list)}):\n{findings_text}")
     elif site_id:
-        context_parts.append("\nOPEN FINDINGS: None for this site")
+        context_parts.append("\nOPEN FINDINGS: None")
 
+    # Next visit — always include when site selected
     if upcoming_visit:
-        context_parts.append(f"\nNEXT MONITORING VISIT: {upcoming_visit.get('visit_label')} planned {upcoming_visit.get('planned_date')}, CRA: {upcoming_visit.get('cra_name')}, Status: {upcoming_visit.get('status')}")
+        context_parts.append(
+            f"\nNEXT VISIT: {upcoming_visit.get('visit_label')} on {upcoming_visit.get('planned_date')} "
+            f"| CRA: {upcoming_visit.get('cra_name')} | Status: {upcoming_visit.get('status')}"
+        )
 
+    # TMF issues — always include when site selected
     if tmf_issues:
         tmf_text = "\n".join([
-            f"  - [{t['status']}] {t['document_type']} ({t['category']}) | {t.get('notes','')[:80]}"
+            f"  [{t['status']}] {t['document_type']} ({t['category']})"
             for t in tmf_issues
         ])
-        context_parts.append(f"\nTMF ISSUES ({len(tmf_issues)} documents need attention):\n{tmf_text}")
+        context_parts.append(f"\nTMF ISSUES ({len(tmf_issues)}):\n{tmf_text}")
 
+    # TMF available docs — only include when site selected (for document fetch)
     if available_tmf_docs:
         doc_list = "\n".join([
-            f"  - {d['document_type']}: \"{d['title']}\" v{d.get('version','')} ({d['status']}) | file: {d.get('file_path','')}"
+            f"  {d['document_type']}: \"{d['title']}\" v{d.get('version','')} | {d.get('file_path','')}"
             for d in available_tmf_docs
         ])
-        context_parts.append(f"\nAVAILABLE TMF DOCUMENTS (can be fetched on request):\n{doc_list}")
+        context_parts.append(f"\nAVAILABLE TMF DOCUMENTS:\n{doc_list}")
 
-    all_sites_text = "\n".join([
-        f"  Site {s['site_id']}: {s['site_name']} ({s['country']}) — {s['enrolled']} enrolled, {s['open_findings'] or 0} open findings ({s['critical_findings'] or 0} critical)"
-        for s in all_sites_summary
-    ])
-    context_parts.append(f"\nALL SITES SUMMARY:\n{all_sites_text}")
+    # All-sites summary — only in study-wide mode (no site selected)
+    if not site_id:
+        all_sites_text = "\n".join([
+            f"  Site {s['site_id']}: {s['site_name']} ({s['country']}) — "
+            f"{s['enrolled']} enrolled, {s['open_findings'] or 0} open findings "
+            f"({s['critical_findings'] or 0} critical)"
+            for s in all_sites_summary
+        ])
+        context_parts.append(f"\nALL SITES SUMMARY:\n{all_sites_text}")
 
-    # Build mode label for prompt
-    mode_label = f"Site {site_id} — {site_info.get('site_name','')}" if (site_id and site_info) else "Study Level (all sites)"
+    mode_label = f"Site {site_id} — {site_info.get('site_name','')}" if (site_id and site_info) else "Study Level"
 
-    system_prompt = f"""You are CRA Copilot, an expert AI assistant for Clinical Research Associates (CRAs) working on clinical trial NVX-1218.22 (NovaPlex-450 in Advanced NSCLC).
-Current context: {mode_label}
-
-You have real-time access to the following trial data:
+    system_prompt = f"""You are CRA Copilot, an expert AI assistant for CRAs on trial NVX-1218.22 (NovaPlex-450, Advanced NSCLC).
+Context: {mode_label}
 
 {"".join(context_parts)}
 
-EXAMPLE INTERACTIONS (follow these patterns exactly):
-Q: "What are the exclusion criteria?"
-A: {{"intent":"protocol_qa","text":"The key exclusion criteria for NVX-1218.22 are: 1. Prior immunotherapy...","document_type":null,"file_path":null,"document_title":null,"data_table":null}}
+ALWAYS respond in valid JSON (no markdown, no extra text):
+{{"intent":"document_fetch|data_answer|protocol_qa","text":"...","document_type":null,"file_path":null,"document_title":null,"data_table":null}}
 
-Q: "Show me the delegation log"
-A: {{"intent":"document_fetch","text":"Fetching the Site Delegation Log...","document_type":"Delegation Log","file_path":"tmf_documents/site_101/delegation_log_v1.pdf","document_title":"Site Delegation Log v1.0","data_table":null}}
-
-Q: "What are the open findings?"
-A: {{"intent":"data_answer","text":"Here are the open findings for this site:","document_type":null,"file_path":null,"document_title":null,"data_table":{{"headers":["Severity","Type","Subject","Description","Due Date"],"rows":[["Critical","Protocol Deviation","102-003","ICF re-consent not obtained","2025-03-01"]]}}}}
-
-INSTRUCTIONS:
-1. Answer protocol questions (dosing, eligibility, endpoints, visit schedule, AE rules, randomisation) using the structured protocol data AND additional protocol detail above. Be specific and cite actual values.
-2. For document fetch requests, use intent "document_fetch" and extract file_path exactly from AVAILABLE TMF DOCUMENTS.
-3. For data questions (findings, enrollment, subjects), use intent "data_answer" with a data_table.
-4. For study-wide questions when no site selected, use ALL SITES SUMMARY to answer.
-5. If asked about a topic not in your context, say so clearly and suggest where to find it.
-6. Always be concise, accurate, and professional.
-
-ALWAYS respond in valid JSON with this exact structure (no markdown, no extra text):
-{{
-  "intent": "document_fetch|data_answer|protocol_qa|action_summary",
-  "text": "Your response text here",
-  "document_type": "exact document_type if intent=document_fetch, else null",
-  "file_path": "exact file_path from TMF documents list if intent=document_fetch, else null",
-  "document_title": "document title if intent=document_fetch, else null",
-  "data_table": null or {{"headers": ["col1","col2"], "rows": [["val1","val2"]]}}
-}}"""
+Rules:
+- protocol_qa: answer from protocol data above, cite actual values
+- data_answer: use data_table with headers+rows for findings/enrollment/subjects
+- document_fetch: set file_path exactly from AVAILABLE TMF DOCUMENTS list
+- study-wide questions: use ALL SITES SUMMARY
+- unknown topic: say so and suggest where to find it
+- Always concise, accurate, professional"""
 
     # ── Call LLM ────────────────────────────────────────────────────────────
     client = _Anthropic(api_key=api_key, timeout=25.0)
 
     messages = []
-    # Add conversation history (last 6 messages)
-    for h in history[-6:]:
+    # Conversation history — last 3 turns (6 messages was excessive)
+    for h in history[-3:]:
         if h.get('role') in ('user', 'assistant') and h.get('content'):
             messages.append({"role": h['role'], "content": str(h['content'])})
 
