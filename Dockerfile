@@ -34,6 +34,9 @@ COPY tmf_documents/ ./tmf_documents/
 RUN printf '#!/bin/bash\nset -e\necho "Seeding database..."\npython /app/create_sqlite_db.py\necho "Database ready."\nexec uvicorn api_sqlite:app --host 0.0.0.0 --port ${PORT:-8000}\n' > /app/start.sh \
   && chmod +x /app/start.sh
 
+# Persistent logs stored on Railway Volume mounted at /data
+ENV LOGS_DB=/data/access_logs.db
+
 EXPOSE 8000
 
 CMD ["/app/start.sh"]

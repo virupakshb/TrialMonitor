@@ -241,7 +241,7 @@ async def usage_logging_middleware(request: Request, call_next):
             message_text = getattr(request.state, "chat_message", None)
             site_id_log = getattr(request.state, "chat_site_id", None)
 
-            with get_db() as conn:
+            with get_logs_db() as conn:
                 conn.execute("""
                     INSERT INTO usage_logs
                         (session_id, ip_address, user_agent, endpoint, method,
@@ -264,14 +264,54 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database path
+# Database path — main clinical trial DB (re-seeded on every deploy)
 DB_PATH = os.path.join(os.path.dirname(__file__), 'clinical_trial.db')
+
+# Persistent logs DB — stored on Railway Volume at /data, survives redeploys
+# Falls back to local file for development
+_LOGS_DB_DEFAULT = os.path.join(os.path.dirname(__file__), 'access_logs.db')
+LOGS_DB_PATH = os.environ.get('LOGS_DB', _LOGS_DB_DEFAULT)
+
+def _init_logs_db():
+    """Create usage_logs table in the persistent logs DB if it doesn't exist."""
+    os.makedirs(os.path.dirname(LOGS_DB_PATH) if os.path.dirname(LOGS_DB_PATH) else '.', exist_ok=True)
+    conn = sqlite3.connect(LOGS_DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS usage_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            endpoint TEXT NOT NULL,
+            method TEXT NOT NULL,
+            status_code INTEGER,
+            response_ms INTEGER,
+            message_text TEXT,
+            site_id TEXT,
+            timestamp TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Initialise logs DB at startup
+_init_logs_db()
 
 @contextmanager
 def get_db():
-    """Context manager for database connections"""
+    """Context manager for main clinical trial database connections"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # Return rows as dictionaries
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+@contextmanager
+def get_logs_db():
+    """Context manager for persistent access logs database (survives redeploys)"""
+    conn = sqlite3.connect(LOGS_DB_PATH)
+    conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
@@ -1190,7 +1230,7 @@ def reset_usage():
 @app.get("/api/admin/access-logs")
 def get_access_logs():
     """Return access log summary: unique sessions by IP, user-agent, time, endpoints hit."""
-    with get_db() as conn:
+    with get_logs_db() as conn:
         cur = conn.cursor()
 
         # Total requests (excluding static assets - already filtered at log time)
