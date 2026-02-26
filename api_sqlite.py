@@ -1187,6 +1187,97 @@ def reset_usage():
     return {"message": "Usage stats reset"}
 
 
+@app.get("/api/admin/access-logs")
+def get_access_logs():
+    """Return access log summary: unique sessions by IP, user-agent, time, endpoints hit."""
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Total requests (excluding static assets - already filtered at log time)
+        cur.execute("SELECT COUNT(*) FROM usage_logs")
+        total_requests = cur.fetchone()[0]
+
+        # Unique IPs
+        cur.execute("SELECT COUNT(DISTINCT ip_address) FROM usage_logs WHERE ip_address != ''")
+        unique_ips = cur.fetchone()[0]
+
+        # Unique sessions
+        cur.execute("SELECT COUNT(DISTINCT session_id) FROM usage_logs WHERE session_id != ''")
+        unique_sessions = cur.fetchone()[0]
+
+        # Per-IP summary: first seen, last seen, request count, endpoints, user agents
+        cur.execute("""
+            SELECT
+                ip_address,
+                COUNT(*) as request_count,
+                MIN(timestamp) as first_seen,
+                MAX(timestamp) as last_seen,
+                COUNT(DISTINCT session_id) as sessions,
+                GROUP_CONCAT(DISTINCT endpoint) as endpoints,
+                GROUP_CONCAT(DISTINCT user_agent) as user_agents
+            FROM usage_logs
+            WHERE ip_address != ''
+            GROUP BY ip_address
+            ORDER BY last_seen DESC
+        """)
+        rows = cur.fetchall()
+        per_ip = []
+        for r in rows:
+            per_ip.append({
+                "ip": r[0],
+                "request_count": r[1],
+                "first_seen": r[2],
+                "last_seen": r[3],
+                "sessions": r[4],
+                "endpoints": r[5].split(",") if r[5] else [],
+                "user_agents": list(set(r[6].split(",") if r[6] else [])),
+            })
+
+        # Recent activity (last 50 requests)
+        cur.execute("""
+            SELECT timestamp, ip_address, endpoint, method, status_code, response_ms,
+                   user_agent, message_text, site_id
+            FROM usage_logs
+            ORDER BY timestamp DESC
+            LIMIT 50
+        """)
+        recent = [dict_from_row(r) for r in cur.fetchall()]
+
+        # Copilot questions asked
+        cur.execute("""
+            SELECT timestamp, ip_address, message_text, site_id
+            FROM usage_logs
+            WHERE message_text IS NOT NULL AND message_text != ''
+            ORDER BY timestamp DESC
+            LIMIT 50
+        """)
+        chat_logs = [dict_from_row(r) for r in cur.fetchall()]
+
+        # Hourly activity breakdown
+        cur.execute("""
+            SELECT strftime('%Y-%m-%d %H:00', timestamp) as hour,
+                   COUNT(*) as requests,
+                   COUNT(DISTINCT ip_address) as unique_ips
+            FROM usage_logs
+            GROUP BY hour
+            ORDER BY hour DESC
+            LIMIT 48
+        """)
+        hourly = [dict_from_row(r) for r in cur.fetchall()]
+
+    return {
+        "summary": {
+            "total_requests": total_requests,
+            "unique_ips": unique_ips,
+            "unique_sessions": unique_sessions,
+        },
+        "per_ip": per_ip,
+        "recent_activity": recent,
+        "copilot_questions": chat_logs,
+        "hourly_breakdown": hourly,
+    }
+
+
 @app.post("/api/evaluate/subject/{subject_id}")
 def evaluate_subject(subject_id: str):
     """Run all active rules for a single subject and return results"""
