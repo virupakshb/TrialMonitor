@@ -66,24 +66,29 @@ const Icons = {
   results:   <svg viewBox="0 0 16 16" fill="currentColor" className="nav-item-icon"><path d="M2 2h12v12H2V2zm2 4v6h2V6H4zm3 2v4h2V8H7zm3-3v7h2V5h-2z"/></svg>,
   violations:<svg viewBox="0 0 16 16" fill="currentColor" className="nav-item-icon"><path d="M8 1L1 14h14L8 1zm0 3l4.5 8h-9L8 4zm-.75 3v2.5h1.5V7h-1.5zm0 3v1.5h1.5V10h-1.5z"/></svg>,
   site:      <svg viewBox="0 0 16 16" fill="currentColor" className="nav-item-icon"><path d="M8 1a4 4 0 00-4 4c0 3 4 9 4 9s4-6 4-9a4 4 0 00-4-4zm0 5.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/></svg>,
+  risk:      <svg viewBox="0 0 16 16" fill="currentColor" className="nav-item-icon"><path d="M8 1L1 14h14L8 1zm0 3l4.5 8h-9L8 4zm-.75 3v2.5h1.5V7h-1.5zm0 3v1.5h1.5V10h-1.5z"/><circle cx="12" cy="4" r="3.5" fill="#E67E22"/><text x="12" y="5.5" textAnchor="middle" fontSize="4" fill="white" fontWeight="bold">!</text></svg>,
   copilot:   <svg viewBox="0 0 16 16" fill="currentColor" style={{ width:14, height:14, flexShrink:0 }}><path d="M14 1H2a1 1 0 00-1 1v9a1 1 0 001 1h2v3l4-3h6a1 1 0 001-1V2a1 1 0 00-1-1z"/></svg>,
 };
 
 const VIEW_META = {
-  dashboard:      { label: 'Dashboard',   icon: Icons.dashboard },
-  subjects:       { label: 'Subjects',    icon: Icons.subjects },
-  'subject-detail':{ label: 'Subjects',  icon: Icons.subjects },
-  rules:          { label: 'Rules',       icon: Icons.rules },
-  execute:        { label: 'Execute',     icon: Icons.execute },
-  results:        { label: 'Results',     icon: Icons.results },
-  violations:     { label: 'Violations',  icon: Icons.violations },
-  site:           { label: 'My Sites',    icon: Icons.site },
+  dashboard:        { label: 'Dashboard',    icon: Icons.dashboard },
+  subjects:         { label: 'Subjects',     icon: Icons.subjects },
+  'subject-detail': { label: 'Subjects',     icon: Icons.subjects },
+  rules:            { label: 'Rules',        icon: Icons.rules },
+  execute:          { label: 'Execute',      icon: Icons.execute },
+  results:          { label: 'Results',      icon: Icons.results },
+  violations:       { label: 'Violations',   icon: Icons.violations },
+  site:             { label: 'My Sites',     icon: Icons.site },
+  risk:             { label: 'Risk',         icon: Icons.risk },
+  'risk-rankings':  { label: 'Risk',         icon: Icons.risk },
+  'risk-site':      { label: 'Risk',         icon: Icons.risk },
 };
 
 // Main App Component
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [selectedRiskSite, setSelectedRiskSite] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatContext, setChatContext] = useState({ site_id: '', visit_id: null });
 
@@ -95,6 +100,7 @@ function App() {
     { id: 'results',    label: 'Results',    icon: Icons.results },
     { id: 'violations', label: 'Violations', icon: Icons.violations },
     { id: 'site',       label: 'My Sites',   icon: Icons.site },
+    { id: 'risk',       label: 'Risk',       icon: Icons.risk },
   ];
 
   const breadcrumb = VIEW_META[currentView] || VIEW_META['dashboard'];
@@ -116,7 +122,11 @@ function App() {
           {navItems.map(item => (
             <button
               key={item.id}
-              className={`nav-item${currentView === item.id || (item.id === 'subjects' && currentView === 'subject-detail') ? ' active' : ''}`}
+              className={`nav-item${
+                currentView === item.id ||
+                (item.id === 'subjects' && currentView === 'subject-detail') ||
+                (item.id === 'risk' && (currentView === 'risk-rankings' || currentView === 'risk-site'))
+                  ? ' active' : ''}`}
               onClick={() => setCurrentView(item.id)}
             >
               {item.icon}
@@ -181,6 +191,25 @@ function App() {
                 onNavigate={setCurrentView}
                 onSelectSubject={(id) => { setSelectedSubject(id); setCurrentView('subject-detail'); }}
                 onContextChange={setChatContext}
+              />
+            )}
+            {currentView === 'risk' && (
+              <RiskDashboard
+                onViewRankings={() => setCurrentView('risk-rankings')}
+                onViewSite={(id) => { setSelectedRiskSite(id); setCurrentView('risk-site'); }}
+              />
+            )}
+            {currentView === 'risk-rankings' && (
+              <SiteRankings
+                onBack={() => setCurrentView('risk')}
+                onViewSite={(id) => { setSelectedRiskSite(id); setCurrentView('risk-site'); }}
+              />
+            )}
+            {currentView === 'risk-site' && selectedRiskSite && (
+              <SiteRiskDetail
+                siteId={selectedRiskSite}
+                onBack={() => setCurrentView('risk-rankings')}
+                onOpenInMySites={() => setCurrentView('site')}
               />
             )}
           </main>
@@ -2233,10 +2262,28 @@ function SiteMonitoring({ onNavigate, onSelectSubject, onContextChange }) {
                 {s.tmf_expiring>0 && <div style={{ fontSize:'11px', color:'var(--color-major)', marginTop:'2px', fontWeight:600 }}>{s.tmf_expiring} expiring</div>}
               </div>
               {/* Risk + action */}
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'8px', minWidth:'120px' }}>
-                <span style={{ padding:'4px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:700, background:rc.bg, border:`1px solid ${rc.border}`, color:rc.text }}>
-                  {s.risk} Risk
-                </span>
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'8px', minWidth:'140px' }}>
+                {s.risk_level_detail ? (
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                    <span style={{ padding:'3px 10px', borderRadius:'4px', fontSize:'12px', fontWeight:700,
+                      background: RISK_COLORS[s.risk_level_detail]?.bg || rc.bg,
+                      border:`1px solid ${RISK_COLORS[s.risk_level_detail]?.border || rc.border}`,
+                      color: RISK_COLORS[s.risk_level_detail]?.text || rc.text }}>
+                      {s.risk_level_detail} · {s.risk_score}
+                    </span>
+                    {s.risk_trend && (
+                      <span style={{ fontSize:11,
+                        color: s.risk_trend === 'DETERIORATING' ? '#C0392B' : s.risk_trend === 'IMPROVING' ? '#1E7E4A' : '#5B6E8C',
+                        fontWeight:600 }}>
+                        {s.risk_trend === 'DETERIORATING' ? '↑' : s.risk_trend === 'IMPROVING' ? '↓' : '→'} {s.risk_trend}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ padding:'4px 12px', borderRadius:'20px', fontSize:'12px', fontWeight:700, background:rc.bg, border:`1px solid ${rc.border}`, color:rc.text }}>
+                    {s.risk} Risk
+                  </span>
+                )}
                 <button onClick={() => goToSite(s.site_id)} style={{ background:'var(--color-blue)', color:'white', border:'none', borderRadius:'8px', padding:'7px 16px', cursor:'pointer', fontWeight:600, fontSize:'13px', whiteSpace:'nowrap' }}>
                   View Site →
                 </button>
@@ -2764,6 +2811,601 @@ function MonitoringVisitDetail({ visitId, onSelectSubject, onRefresh }) {
             )}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// RISK RANKING COMPONENTS
+// ============================================================
+
+const RISK_COLORS = {
+  CRITICAL: { bg: '#FEF0EE', text: '#C0392B', border: '#F5C6C2', dot: '#C0392B' },
+  HIGH:     { bg: '#FFF4E5', text: '#C96A00', border: '#FDDCAA', dot: '#E67E22' },
+  ELEVATED: { bg: '#FFFBEA', text: '#92650A', border: '#FAE29C', dot: '#D4AC0D' },
+  MODERATE: { bg: '#EBF2FF', text: '#1D4ED8', border: '#BFDBFE', dot: '#2563EB' },
+  LOW:      { bg: '#EAF7EF', text: '#1E7E4A', border: '#A7F3D0', dot: '#22C55E' },
+  MINIMAL:  { bg: '#F0F2F5', text: '#5B6E8C', border: '#DDE2EA', dot: '#94A3B8' },
+};
+
+const TREND_ICONS = {
+  DETERIORATING: { icon: '↑', color: '#C0392B', label: 'Deteriorating' },
+  STABLE:        { icon: '→', color: '#5B6E8C', label: 'Stable' },
+  IMPROVING:     { icon: '↓', color: '#1E7E4A', label: 'Improving' },
+};
+
+function RiskBadge({ level, score, size = 'normal' }) {
+  const c = RISK_COLORS[level] || RISK_COLORS.MINIMAL;
+  const small = size === 'small';
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: small ? 4 : 6,
+      background: c.bg, color: c.text, border: `1px solid ${c.border}`,
+      borderRadius: 4, padding: small ? '2px 6px' : '3px 8px',
+      fontSize: small ? 11 : 12, fontWeight: 700, whiteSpace: 'nowrap',
+    }}>
+      <span style={{ width: small ? 6 : 8, height: small ? 6 : 8, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+      {level}{score !== undefined && ` · ${score}`}
+    </span>
+  );
+}
+
+function TrendPill({ trend, delta }) {
+  const t = TREND_ICONS[trend] || TREND_ICONS.STABLE;
+  return (
+    <span style={{ color: t.color, fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap' }}>
+      {t.icon} {t.label}{delta !== undefined && delta !== 0 ? ` (${delta > 0 ? '+' : ''}${delta})` : ''}
+    </span>
+  );
+}
+
+// ── Risk Dashboard ────────────────────────────────────────────
+function RiskDashboard({ onViewRankings, onViewSite }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/risk/dashboard')
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="loading">Loading risk dashboard...</div>;
+  if (!data) return <div className="loading">No risk data available.</div>;
+
+  const dist = data.distribution || [];
+  const maxCount = Math.max(...dist.map(d => d.count), 1);
+  const enrollPct = data.total_planned > 0
+    ? Math.round((data.total_enrolled / data.total_planned) * 100) : 0;
+
+  const rankLabels = { 1: 'CRITICAL', 2: 'HIGH', 3: 'ELEVATED', 4: 'MODERATE', 5: 'LOW', 6: 'MINIMAL' };
+  const rankActions = {
+    1: 'Immediate action required',
+    2: 'Action within 7 days',
+    3: 'Enhanced monitoring',
+    4: 'Standard monitoring + watchlist',
+    5: 'Routine monitoring',
+    6: 'Continue routine oversight',
+  };
+
+  return (
+    <div className="dashboard">
+      <div className="page-header">
+        <div>
+          <div className="page-title">Site Risk Dashboard</div>
+          <div className="page-subtitle">Protocol NVX-1218.22 — Reporting Month: November 2024 · NexaVance Therapeutics</div>
+        </div>
+        <button
+          onClick={onViewRankings}
+          style={{ padding: '8px 16px', background: 'var(--color-blue)', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+        >
+          View Full Rankings
+        </button>
+      </div>
+
+      {/* KPI Row */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-value">{data.total_sites}</div>
+          <div className="stat-label">Active Sites</div>
+        </div>
+        <div className="stat-card info">
+          <div className="stat-value">{data.total_enrolled?.toLocaleString()}</div>
+          <div className="stat-label">Subjects Enrolled</div>
+        </div>
+        <div className="stat-card critical">
+          <div className="stat-value">{dist.find(d => d.rank === 1)?.count || 0}</div>
+          <div className="stat-label">Critical Sites</div>
+        </div>
+        <div className="stat-card major">
+          <div className="stat-value">{data.trends?.deteriorating || 0}</div>
+          <div className="stat-label">Deteriorating</div>
+        </div>
+        <div className="stat-card minor">
+          <div className="stat-value">{data.trends?.improving || 0}</div>
+          <div className="stat-label">Improving</div>
+        </div>
+        <div className="stat-card neutral">
+          <div className="stat-value">{enrollPct}%</div>
+          <div className="stat-label">Enrollment vs Target</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginTop: 8 }}>
+        {/* Risk Distribution */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 16 }}>
+            Risk Distribution — November 2024
+          </div>
+          {dist.map(d => {
+            const c = RISK_COLORS[d.level] || RISK_COLORS.MINIMAL;
+            const barW = Math.round((d.count / maxCount) * 100);
+            return (
+              <div key={d.rank} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                <div style={{ width: 80, flexShrink: 0 }}>
+                  <RiskBadge level={d.level} size="small" />
+                </div>
+                <div style={{ flex: 1, background: '#F4F6F9', borderRadius: 3, height: 18, overflow: 'hidden' }}>
+                  <div style={{ width: `${barW}%`, height: '100%', background: c.dot, borderRadius: 3, transition: 'width 0.6s ease', minWidth: d.count > 0 ? 4 : 0 }} />
+                </div>
+                <div style={{ width: 24, textAlign: 'right', fontWeight: 700, fontSize: 13, color: c.text, flexShrink: 0 }}>
+                  {d.count}
+                </div>
+                <div style={{ width: 140, fontSize: 11, color: 'var(--color-muted)', flexShrink: 0 }}>
+                  {rankActions[d.rank]}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Trend Summary */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 16 }}>
+            Month-over-Month Trend (Oct → Nov)
+          </div>
+          {[
+            { label: 'Deteriorating', count: data.trends?.deteriorating || 0, color: '#C0392B', bg: '#FEF0EE', icon: '↑', desc: 'Risk increased >5 pts' },
+            { label: 'Stable',        count: data.trends?.stable        || 0, color: '#5B6E8C', bg: '#F0F2F5', icon: '→', desc: 'Risk within ±5 pts' },
+            { label: 'Improving',     count: data.trends?.improving     || 0, color: '#1E7E4A', bg: '#EAF7EF', icon: '↓', desc: 'Risk decreased >5 pts' },
+          ].map(t => (
+            <div key={t.label} style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '12px 16px', background: t.bg, borderRadius: 6, marginBottom: 10,
+              border: `1px solid ${t.color}22`,
+            }}>
+              <div style={{ fontSize: 22, color: t.color, fontWeight: 700, width: 24, flexShrink: 0 }}>{t.icon}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: t.color, fontSize: 13 }}>{t.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--color-muted)', marginTop: 2 }}>{t.desc}</div>
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: t.color }}>{t.count}</div>
+              <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>sites</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Key Alerts */}
+      {data.alerts && data.alerts.length > 0 && (
+        <div style={{ marginTop: 20, background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)', marginBottom: 16 }}>
+            Key Alerts — Immediate Attention Required
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {data.alerts.map(a => {
+              const c = RISK_COLORS[a.risk_level] || RISK_COLORS.CRITICAL;
+              return (
+                <div key={a.site_id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 16,
+                  padding: '14px 18px', background: c.bg, borderRadius: 6,
+                  border: `1px solid ${c.border}`, cursor: 'pointer',
+                }} onClick={() => onViewSite(a.site_id)}>
+                  <div style={{ flexShrink: 0, paddingTop: 2 }}>
+                    <RiskBadge level={a.risk_level} score={a.total_risk_score} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: 13 }}>
+                      {a.site_name} · {a.city}, {a.country}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--color-muted)', marginTop: 4 }}>
+                      {a.flags.join(' · ')} · Last visit {a.days_since_last_visit}d ago
+                    </div>
+                    <div style={{ fontSize: 12, color: c.text, marginTop: 6, fontWeight: 600 }}>
+                      → {a.recommended_action?.split('.')[0]}
+                    </div>
+                  </div>
+                  <div style={{ flexShrink: 0 }}>
+                    <TrendPill trend={a.trend} delta={a.trend_delta} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 14, textAlign: 'right' }}>
+            <button onClick={onViewRankings} style={{
+              padding: '7px 16px', background: 'var(--color-blue)', color: '#fff',
+              border: 'none', borderRadius: 5, fontWeight: 600, cursor: 'pointer', fontSize: 12,
+            }}>
+              View All Site Rankings →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Site Rankings ─────────────────────────────────────────────
+function SiteRankings({ onBack, onViewSite }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ region: '', risk_level: '', trend: '', search: '' });
+  const [filterOptions, setFilterOptions] = useState({ regions: [], risk_levels: [], trends: [] });
+
+  React.useEffect(() => {
+    Promise.all([
+      fetch('/api/risk/rankings').then(r => r.json()),
+      fetch('/api/risk/filters').then(r => r.json()),
+    ]).then(([rankData, filterData]) => {
+      setData(rankData);
+      setFilterOptions(filterData);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="loading">Loading rankings...</div>;
+  if (!data) return <div className="loading">No ranking data.</div>;
+
+  const sites = (data.sites || []).filter(s => {
+    if (filters.region && s.region !== filters.region) return false;
+    if (filters.risk_level && s.risk_level !== filters.risk_level) return false;
+    if (filters.trend && s.trend !== filters.trend) return false;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      if (!s.site_name.toLowerCase().includes(q) &&
+          !s.city.toLowerCase().includes(q) &&
+          !s.country.toLowerCase().includes(q) &&
+          !s.site_id.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const setFilter = (k, v) => setFilters(f => ({ ...f, [k]: v }));
+
+  const selStyle = {
+    padding: '6px 10px', border: '1px solid var(--color-border)',
+    borderRadius: 5, fontSize: 12, background: '#fff', color: 'var(--color-text)',
+    cursor: 'pointer',
+  };
+
+  return (
+    <div className="dashboard">
+      <div className="page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 5, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: 'var(--color-muted)' }}>
+            ← Dashboard
+          </button>
+          <div>
+            <div className="page-title">Site Risk Rankings</div>
+            <div className="page-subtitle">
+              {sites.length} of {data.total} sites · November 2024
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16, padding: '12px 16px', background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)' }}>
+        <input
+          placeholder="Search site, city, country..."
+          value={filters.search}
+          onChange={e => setFilter('search', e.target.value)}
+          style={{ ...selStyle, width: 220 }}
+        />
+        <select value={filters.region} onChange={e => setFilter('region', e.target.value)} style={selStyle}>
+          <option value="">All Regions</option>
+          {filterOptions.regions.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={filters.risk_level} onChange={e => setFilter('risk_level', e.target.value)} style={selStyle}>
+          <option value="">All Risk Levels</option>
+          {filterOptions.risk_levels.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+        <select value={filters.trend} onChange={e => setFilter('trend', e.target.value)} style={selStyle}>
+          <option value="">All Trends</option>
+          {filterOptions.trends.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        {(filters.region || filters.risk_level || filters.trend || filters.search) && (
+          <button onClick={() => setFilters({ region: '', risk_level: '', trend: '', search: '' })}
+            style={{ ...selStyle, color: 'var(--color-critical)', border: '1px solid var(--color-critical)', background: '#FEF0EE' }}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr style={{ background: '#F4F6F9', borderBottom: '2px solid var(--color-border)' }}>
+              {['#', 'Site', 'Location', 'Risk Score', 'Components', 'Trend', 'Subjects', 'SAE %', 'Query Rate', 'Days Since Visit', 'Top Flags'].map(h => (
+                <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 700, fontSize: 11, color: 'var(--color-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sites.map((s, i) => {
+              const c = RISK_COLORS[s.risk_level] || RISK_COLORS.MINIMAL;
+              const topFlags = [];
+              if (s.flags?.sdv_backlog) topFlags.push('SDV');
+              if (s.flags?.pi_oversight) topFlags.push('PI');
+              if (s.flags?.non_enroller) topFlags.push('Non-enroller');
+              if (s.flags?.high_sae) topFlags.push('SAE');
+              if (s.flags?.critical_deviations) topFlags.push('Devs');
+              if (s.flags?.overdue_actions) topFlags.push('Actions');
+
+              // Mini component bars (5 components, max values: 20,20,20,15,10)
+              const compBars = [
+                { label: 'M', val: s.monitoring_risk_score, max: 20 },
+                { label: 'PI', val: s.pi_risk_score, max: 20 },
+                { label: 'R', val: s.recruitment_risk_score, max: 20 },
+                { label: 'S', val: s.signal_risk_points, max: 15 },
+                { label: 'Q', val: s.qa_status_risk_pts, max: 10 },
+              ];
+
+              return (
+                <tr key={s.site_id}
+                  style={{ borderBottom: '1px solid var(--color-border-lt)', cursor: 'pointer', transition: 'background 0.1s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#F8F9FC'}
+                  onMouseLeave={e => e.currentTarget.style.background = ''}
+                  onClick={() => onViewSite(s.site_id)}
+                >
+                  <td style={{ padding: '10px 12px', color: 'var(--color-muted)', fontWeight: 700, width: 32 }}>{i + 1}</td>
+                  <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: 12 }}>{s.site_id}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.site_name}</div>
+                  </td>
+                  <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 12 }}>{s.city}</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-muted)' }}>{s.country}</div>
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <RiskBadge level={s.risk_level} score={s.total_risk_score} size="small" />
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height: 22 }}>
+                      {compBars.map(b => (
+                        <div key={b.label} title={`${b.label}: ${b.val}/${b.max}`} style={{ width: 10, background: b.val > 0 ? c.dot : '#E2E8F0', borderRadius: 2, height: `${Math.max(3, Math.round((b.val / b.max) * 22))}px`, opacity: 0.8 }} />
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <TrendPill trend={s.trend} delta={s.trend_delta} />
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700 }}>{s.active_subjects}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <span style={{ color: s.sae_rate_pct > 15 ? '#C0392B' : 'inherit', fontWeight: s.sae_rate_pct > 15 ? 700 : 400 }}>
+                      {s.sae_rate_pct?.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <span style={{ color: s.data_query_rate_pct > 20 ? '#C0392B' : s.data_query_rate_pct > 10 ? '#C96A00' : 'inherit', fontWeight: s.data_query_rate_pct > 10 ? 700 : 400 }}>
+                      {s.data_query_rate_pct?.toFixed(1)}%
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <span style={{ color: s.days_since_last_visit > 60 ? '#C0392B' : s.days_since_last_visit > 30 ? '#C96A00' : 'inherit', fontWeight: s.days_since_last_visit > 30 ? 700 : 400 }}>
+                      {s.days_since_last_visit}d
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {topFlags.slice(0, 3).map(f => (
+                        <span key={f} style={{ fontSize: 10, padding: '1px 5px', background: c.bg, color: c.text, border: `1px solid ${c.border}`, borderRadius: 3, fontWeight: 600 }}>{f}</span>
+                      ))}
+                      {topFlags.length > 3 && <span style={{ fontSize: 10, color: 'var(--color-muted)' }}>+{topFlags.length - 3}</span>}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {sites.length === 0 && (
+          <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--color-muted)' }}>
+            No sites match the current filters.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Site Risk Detail ──────────────────────────────────────────
+function SiteRiskDetail({ siteId, onBack, onOpenInMySites }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(`/api/risk/site/${siteId}`)
+      .then(r => r.json())
+      .then(d => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [siteId]);
+
+  if (loading) return <div className="loading">Loading site risk detail...</div>;
+  if (!data) return <div className="loading">No data for site {siteId}.</div>;
+
+  const { site, current, trend_history } = data;
+  const c = RISK_COLORS[current.risk_level] || RISK_COLORS.MINIMAL;
+
+  // SVG trend chart
+  const chartW = 280, chartH = 80, pad = 16;
+  const scores = trend_history.map(t => t.total_risk_score);
+  const minS = Math.max(0, Math.min(...scores) - 5);
+  const maxS = Math.max(...scores) + 5;
+  const pts = trend_history.map((t, i) => {
+    const x = pad + (i / Math.max(trend_history.length - 1, 1)) * (chartW - 2 * pad);
+    const y = pad + ((maxS - t.total_risk_score) / (maxS - minS)) * (chartH - 2 * pad);
+    return `${x},${y}`;
+  });
+
+  const MONTH_LABELS = { 202409: 'Sep', 202410: 'Oct', 202411: 'Nov' };
+
+  const compRows = [
+    { label: 'Monitoring',  val: current.components.monitoring,  max: 20, tip: 'SDV backlog, CRA turnover, visit frequency' },
+    { label: 'PI Oversight',val: current.components.pi,          max: 20, tip: 'PI concerns, consent, staff training' },
+    { label: 'Recruitment', val: current.components.recruitment, max: 20, tip: 'Enrollment vs target, screen failure, non-enroller' },
+    { label: 'Safety Signal',val: current.components.signal,     max: 15, tip: 'SAE rate, protocol deviations, anomalies' },
+    { label: 'QA / Data',   val: current.components.qa,          max: 10, tip: 'Overdue actions, query rate' },
+  ];
+
+  return (
+    <div className="dashboard">
+      {/* Header */}
+      <div className="page-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button onClick={onBack} style={{ background: 'none', border: '1px solid var(--color-border)', borderRadius: 5, padding: '5px 10px', cursor: 'pointer', fontSize: 12, color: 'var(--color-muted)' }}>
+            ← Rankings
+          </button>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="page-title">{site.site_name}</div>
+              <RiskBadge level={current.risk_level} score={current.total_risk_score} />
+            </div>
+            <div className="page-subtitle">{site.city}, {site.country} · {site.region} · {site.site_type}</div>
+          </div>
+        </div>
+        <button onClick={onOpenInMySites} style={{
+          padding: '7px 14px', background: 'none', border: '1px solid var(--color-border)',
+          borderRadius: 5, fontWeight: 600, cursor: 'pointer', fontSize: 12, color: 'var(--color-text)',
+        }}>
+          Open in My Sites →
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        {/* Risk Components */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, color: 'var(--color-text)' }}>Risk Breakdown</div>
+          {compRows.map(row => (
+            <div key={row.label} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text)' }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: row.val > row.max * 0.7 ? c.text : 'var(--color-muted)' }}>
+                  {row.val} / {row.max}
+                </span>
+              </div>
+              <div style={{ height: 8, background: '#F0F2F5', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', width: `${(row.val / row.max) * 100}%`,
+                  background: row.val > row.max * 0.7 ? c.dot : row.val > row.max * 0.4 ? '#E67E22' : '#22C55E',
+                  borderRadius: 4, transition: 'width 0.5s ease',
+                }} />
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--color-muted)', marginTop: 2 }}>{row.tip}</div>
+            </div>
+          ))}
+          <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid var(--color-border-lt)', display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>Total Risk Score</span>
+            <span style={{ fontSize: 18, fontWeight: 800, color: c.text }}>{current.total_risk_score}</span>
+          </div>
+        </div>
+
+        {/* Trend Chart */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4, color: 'var(--color-text)' }}>3-Month Trend</div>
+          <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 16 }}>
+            <TrendPill trend={current.trend} delta={current.trend_delta} />
+          </div>
+          <svg width={chartW} height={chartH} style={{ overflow: 'visible' }}>
+            {/* Grid lines */}
+            {[0, 0.5, 1].map(f => (
+              <line key={f} x1={pad} y1={pad + f * (chartH - 2 * pad)} x2={chartW - pad} y2={pad + f * (chartH - 2 * pad)}
+                stroke="#F0F2F5" strokeWidth={1} />
+            ))}
+            {/* Line */}
+            {pts.length >= 2 && (
+              <polyline points={pts.join(' ')} fill="none" stroke={c.dot} strokeWidth={2.5} strokeLinejoin="round" />
+            )}
+            {/* Dots + labels */}
+            {trend_history.map((t, i) => {
+              const [x, y] = pts[i].split(',').map(Number);
+              return (
+                <g key={t.month_end}>
+                  <circle cx={x} cy={y} r={5} fill={c.dot} stroke="#fff" strokeWidth={2} />
+                  <text x={x} y={y - 10} textAnchor="middle" fontSize={10} fill={c.text} fontWeight={700}>{t.total_risk_score}</text>
+                  <text x={x} y={chartH - 2} textAnchor="middle" fontSize={10} fill="var(--color-muted)">{MONTH_LABELS[t.month_end]}</text>
+                </g>
+              );
+            })}
+          </svg>
+
+          {/* Site metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 12 }}>
+            {[
+              { label: 'Active Subjects',    val: current.metrics.active_subjects },
+              { label: 'Days Since Visit',   val: `${current.metrics.days_since_last_visit}d`, alert: current.metrics.days_since_last_visit > 60 },
+              { label: 'SAE Rate',           val: `${current.metrics.sae_rate_pct?.toFixed(1)}%`, alert: current.metrics.sae_rate_pct > 15 },
+              { label: 'Query Rate',         val: `${current.metrics.data_query_rate_pct?.toFixed(1)}%`, alert: current.metrics.data_query_rate_pct > 20 },
+              { label: 'Major Deviations',   val: current.metrics.major_deviations_count, alert: current.metrics.major_deviations_count > 5 },
+              { label: 'Overdue Actions',    val: `${current.metrics.overdue_action_items}/${current.metrics.total_action_items}`, alert: current.metrics.overdue_action_items > 5 },
+            ].map(m => (
+              <div key={m.label} style={{ padding: '8px 10px', background: m.alert ? c.bg : '#F8F9FC', borderRadius: 5, border: `1px solid ${m.alert ? c.border : 'var(--color-border-lt)'}` }}>
+                <div style={{ fontSize: 10, color: 'var(--color-muted)', marginBottom: 2 }}>{m.label}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: m.alert ? c.text : 'var(--color-text)' }}>{m.val}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        {/* Risk Flags */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: 'var(--color-text)' }}>Active Risk Flags</div>
+          {current.active_flags.length === 0 ? (
+            <div style={{ color: '#1E7E4A', fontSize: 13 }}>No active risk flags</div>
+          ) : (
+            current.active_flags.map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 5, marginBottom: 8 }}>
+                <span style={{ color: c.text, fontWeight: 700, fontSize: 14 }}>!</span>
+                <span style={{ fontSize: 12, color: 'var(--color-text)' }}>{f}</span>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Recommended Actions */}
+        <div style={{ background: '#fff', borderRadius: 8, border: '1px solid var(--color-border)', padding: '20px 24px' }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 14, color: 'var(--color-text)' }}>Recommended Actions</div>
+          <div style={{ padding: '14px 16px', background: c.bg, border: `1px solid ${c.border}`, borderRadius: 6 }}>
+            <div style={{ fontSize: 12, color: c.text, fontWeight: 600, marginBottom: 6 }}>
+              {current.risk_level} — Rank {current.risk_rank}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--color-text)', lineHeight: 1.6 }}>
+              {current.recommended_action}
+            </div>
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Site Info</div>
+            {[
+              { label: 'Principal Investigator', val: site.pi_name },
+              { label: 'Status', val: site.site_status },
+              { label: 'Enrollment', val: `${site.actual_enrollment} / ${site.planned_enrollment} planned` },
+              { label: 'CRF Velocity', val: `${current.metrics.avg_daily_crf_submissions?.toFixed(1)} pages/day avg` },
+              { label: 'Screen Failure Rate', val: `${current.metrics.screen_failure_rate_pct?.toFixed(1)}%` },
+            ].map(r => (
+              <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid var(--color-border-lt)', fontSize: 12 }}>
+                <span style={{ color: 'var(--color-muted)' }}>{r.label}</span>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{r.val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

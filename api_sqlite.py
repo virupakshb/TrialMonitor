@@ -1878,15 +1878,37 @@ def get_ctms_sites_overview():
             site['tmf_expiring'] = expiring
             site['tmf_score'] = round(present / total_req * 100) if total_req > 0 else 0
 
-            # Risk score
+            # Risk score — prefer quantitative snapshot, fall back to simple formula
             enrollment_gap = max(0, (site.get('planned_enrollment') or 0) - (site.get('actual_enrollment') or 0))
             site['enrollment_gap'] = enrollment_gap
-            site['risk'] = _calculate_risk(
-                open_findings=site['open_findings'],
-                critical_findings=site['critical_findings'],
-                enrollment_gap=enrollment_gap,
-                planned_enrollment=site.get('planned_enrollment') or 1
-            )
+            snapshot = cur.execute("""
+                SELECT total_risk_score, risk_rank, risk_level, trend_vs_prior, trend_delta
+                FROM site_risk_monthly_snapshot
+                WHERE site_id = ?
+                ORDER BY month_end DESC LIMIT 1
+            """, (sid,)).fetchone()
+            if snapshot:
+                site['risk_score'] = snapshot[0]
+                site['risk_rank'] = snapshot[1]
+                site['risk_level_detail'] = snapshot[2]
+                site['risk_trend'] = snapshot[3]
+                site['risk_trend_delta'] = snapshot[4]
+                # Map risk_level to legacy risk label
+                level_map = {'CRITICAL': 'Critical', 'HIGH': 'High', 'ELEVATED': 'Elevated',
+                             'MODERATE': 'Moderate', 'LOW': 'Low', 'MINIMAL': 'Minimal'}
+                site['risk'] = level_map.get(snapshot[2], 'Low')
+            else:
+                site['risk_score'] = None
+                site['risk_rank'] = None
+                site['risk_level_detail'] = None
+                site['risk_trend'] = None
+                site['risk_trend_delta'] = None
+                site['risk'] = _calculate_risk(
+                    open_findings=site['open_findings'],
+                    critical_findings=site['critical_findings'],
+                    enrollment_gap=enrollment_gap,
+                    planned_enrollment=site.get('planned_enrollment') or 1
+                )
 
         # Protocol banner
         cur.execute("""
@@ -2767,6 +2789,297 @@ def update_report_status(monitoring_visit_id: int, status: str, cra_notes: str =
 # ═══════════════════════════════════════════════════════════════════════════════
 # STATIC FILE SERVING (keep at the very bottom — catch-all must be last)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# ============================================================================
+# RISK RANKING ENDPOINTS
+# ============================================================================
+
+@app.get("/api/risk/dashboard")
+def risk_dashboard():
+    """Executive risk dashboard — study-wide summary for latest month."""
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Latest month
+        latest = cur.execute(
+            "SELECT MAX(month_end) FROM site_risk_monthly_snapshot"
+        ).fetchone()[0]
+        prior = cur.execute(
+            "SELECT MAX(month_end) FROM site_risk_monthly_snapshot WHERE month_end < ?",
+            (latest,)
+        ).fetchone()[0]
+
+        if not latest:
+            raise HTTPException(status_code=404, detail="No risk data found")
+
+        # Risk distribution
+        dist = cur.execute("""
+            SELECT risk_rank, risk_level, COUNT(*) as cnt
+            FROM site_risk_monthly_snapshot
+            WHERE month_end = ?
+            GROUP BY risk_rank, risk_level
+            ORDER BY risk_rank
+        """, (latest,)).fetchall()
+
+        distribution = [
+            {"rank": r[0], "level": r[1], "count": r[2]}
+            for r in dist
+        ]
+
+        # Trend counts
+        trends = cur.execute("""
+            SELECT trend_vs_prior, COUNT(*) FROM site_risk_monthly_snapshot
+            WHERE month_end = ? GROUP BY trend_vs_prior
+        """, (latest,)).fetchall()
+        trend_map = {t[0]: t[1] for t in trends}
+
+        # Key alerts — CRITICAL and HIGH sites
+        alerts = cur.execute("""
+            SELECT s.site_id, s.site_name, s.city, s.country,
+                   r.total_risk_score, r.risk_level, r.risk_rank,
+                   r.trend_vs_prior, r.trend_delta,
+                   r.sdv_backlog_flag, r.pi_oversight_flag,
+                   r.enrollment_below_target_flag, r.non_enroller_flag,
+                   r.high_sae_rate_flag, r.protocol_deviation_critical_flag,
+                   r.overdue_action_items_flag, r.recommended_action,
+                   r.active_subjects, r.sae_rate_pct, r.days_since_last_visit
+            FROM site_risk_monthly_snapshot r
+            JOIN sites s ON s.site_id = r.site_id
+            WHERE r.month_end = ? AND r.risk_rank <= 2
+            ORDER BY r.total_risk_score DESC
+        """, (latest,)).fetchall()
+
+        alert_list = []
+        for a in alerts:
+            flags = []
+            if a[9]:  flags.append("SDV backlog")
+            if a[10]: flags.append("PI oversight concerns")
+            if a[11]: flags.append("Enrollment below target")
+            if a[12]: flags.append("Non-enroller")
+            if a[13]: flags.append(f"SAE rate {a[19]:.1f}%")
+            if a[14]: flags.append("Critical protocol deviations")
+            if a[15]: flags.append("Overdue action items")
+            alert_list.append({
+                "site_id": a[0], "site_name": a[1], "city": a[2], "country": a[3],
+                "total_risk_score": a[4], "risk_level": a[5], "risk_rank": a[6],
+                "trend": a[7], "trend_delta": a[8],
+                "flags": flags, "recommended_action": a[16],
+                "active_subjects": a[17], "days_since_last_visit": a[19],
+            })
+
+        # Study totals
+        totals = cur.execute("""
+            SELECT
+                COUNT(DISTINCT s.site_id) as total_sites,
+                SUM(s.actual_enrollment) as total_enrolled,
+                SUM(s.planned_enrollment) as total_planned
+            FROM sites s
+        """).fetchone()
+
+        return {
+            "month_end": latest,
+            "prior_month": prior,
+            "total_sites": totals[0],
+            "total_enrolled": totals[1] or 0,
+            "total_planned": totals[2] or 0,
+            "distribution": distribution,
+            "trends": {
+                "deteriorating": trend_map.get("DETERIORATING", 0),
+                "stable":        trend_map.get("STABLE", 0),
+                "improving":     trend_map.get("IMPROVING", 0),
+            },
+            "alerts": alert_list,
+        }
+
+
+@app.get("/api/risk/rankings")
+def risk_rankings(
+    month: Optional[int] = None,
+    region: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    trend: Optional[str] = None,
+):
+    """Full site risk rankings table, sorted by risk score descending."""
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        if month is None:
+            month = cur.execute(
+                "SELECT MAX(month_end) FROM site_risk_monthly_snapshot"
+            ).fetchone()[0]
+
+        rows = cur.execute("""
+            SELECT
+                r.site_id, s.site_name, s.city, s.country, s.region,
+                s.principal_investigator, s.site_status, s.site_type,
+                r.total_risk_score, r.risk_rank, r.risk_level,
+                r.monitoring_risk_score, r.pi_risk_score,
+                r.recruitment_risk_score, r.signal_risk_points, r.qa_status_risk_pts,
+                r.trend_vs_prior, r.trend_delta,
+                r.active_subjects, r.screen_failure_rate_pct, r.sae_rate_pct,
+                r.major_deviations_count, r.overdue_action_items, r.total_action_items,
+                r.avg_daily_crf_submissions, r.data_query_rate_pct,
+                r.days_since_last_visit, r.recommended_action,
+                r.sdv_backlog_flag, r.cra_turnover_flag, r.pi_oversight_flag,
+                r.enrollment_below_target_flag, r.non_enroller_flag,
+                r.high_sae_rate_flag, r.protocol_deviation_critical_flag,
+                r.overdue_action_items_flag, r.high_query_rate_flag,
+                s.planned_enrollment, s.actual_enrollment,
+                r.month_end
+            FROM site_risk_monthly_snapshot r
+            JOIN sites s ON s.site_id = r.site_id
+            WHERE r.month_end = ?
+            ORDER BY r.total_risk_score DESC
+        """, (month,)).fetchall()
+
+        results = []
+        for i, r in enumerate(rows):
+            item = {
+                "rank_position": i + 1,
+                "site_id": r[0], "site_name": r[1], "city": r[2],
+                "country": r[3], "region": r[4],
+                "pi_name": r[5], "site_status": r[6], "site_type": r[7],
+                "total_risk_score": r[8], "risk_rank": r[9], "risk_level": r[10],
+                "monitoring_risk_score": r[11], "pi_risk_score": r[12],
+                "recruitment_risk_score": r[13], "signal_risk_points": r[14],
+                "qa_status_risk_pts": r[15],
+                "trend": r[16], "trend_delta": r[17],
+                "active_subjects": r[18], "screen_failure_rate_pct": r[19],
+                "sae_rate_pct": r[20], "major_deviations_count": r[21],
+                "overdue_action_items": r[22], "total_action_items": r[23],
+                "avg_daily_crf_submissions": r[24], "data_query_rate_pct": r[25],
+                "days_since_last_visit": r[26], "recommended_action": r[27],
+                "flags": {
+                    "sdv_backlog":         bool(r[28]),
+                    "cra_turnover":        bool(r[29]),
+                    "pi_oversight":        bool(r[30]),
+                    "enrollment_below":    bool(r[31]),
+                    "non_enroller":        bool(r[32]),
+                    "high_sae":            bool(r[33]),
+                    "critical_deviations": bool(r[34]),
+                    "overdue_actions":     bool(r[35]),
+                    "high_queries":        bool(r[36]),
+                },
+                "planned_enrollment": r[37], "actual_enrollment": r[38],
+                "month_end": r[39],
+            }
+            # Apply filters
+            if region and item["region"] != region:
+                continue
+            if risk_level and item["risk_level"] != risk_level:
+                continue
+            if trend and item["trend"] != trend:
+                continue
+            results.append(item)
+
+        return {"month_end": month, "total": len(results), "sites": results}
+
+
+@app.get("/api/risk/site/{site_id}")
+def risk_site_detail(site_id: str):
+    """Individual site risk detail with 3-month trend."""
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Site info
+        site = cur.execute("""
+            SELECT site_id, site_name, city, country, region, site_type,
+                   principal_investigator, site_status, planned_enrollment, actual_enrollment
+            FROM sites WHERE site_id = ?
+        """, (site_id,)).fetchone()
+        if not site:
+            raise HTTPException(status_code=404, detail=f"Site {site_id} not found")
+
+        # All monthly snapshots for this site
+        snapshots = cur.execute("""
+            SELECT month_end, snapshot_date, total_risk_score, risk_rank, risk_level,
+                   trend_vs_prior, trend_delta,
+                   monitoring_risk_score, pi_risk_score, recruitment_risk_score,
+                   signal_risk_points, qa_status_risk_pts,
+                   sdv_backlog_flag, cra_turnover_flag, pi_oversight_flag,
+                   enrollment_below_target_flag, non_enroller_flag,
+                   high_sae_rate_flag, protocol_deviation_critical_flag,
+                   overdue_action_items_flag, high_query_rate_flag, consent_process_flag,
+                   active_subjects, days_since_last_visit, sae_rate_pct,
+                   major_deviations_count, overdue_action_items, total_action_items,
+                   avg_daily_crf_submissions, data_query_rate_pct,
+                   screen_failure_rate_pct, recommended_action
+            FROM site_risk_monthly_snapshot
+            WHERE site_id = ?
+            ORDER BY month_end
+        """, (site_id,)).fetchall()
+
+        if not snapshots:
+            raise HTTPException(status_code=404, detail=f"No risk data for site {site_id}")
+
+        latest = snapshots[-1]
+        trend_data = [
+            {"month_end": s[0], "total_risk_score": s[2],
+             "risk_rank": s[3], "risk_level": s[4]}
+            for s in snapshots
+        ]
+
+        active_flags = []
+        flag_labels = {
+            12: "SDV backlog", 13: "CRA turnover", 14: "PI oversight concerns",
+            15: "Enrollment below target", 16: "Non-enroller (0 subjects last 3mo)",
+            17: "Elevated SAE rate", 18: "Critical protocol deviations",
+            19: "Overdue action items", 20: "High data query rate", 21: "Consent process issues"
+        }
+        for idx, label in flag_labels.items():
+            if latest[idx]:
+                active_flags.append(label)
+
+        return {
+            "site": {
+                "site_id": site[0], "site_name": site[1], "city": site[2],
+                "country": site[3], "region": site[4], "site_type": site[5],
+                "pi_name": site[6], "site_status": site[7],
+                "planned_enrollment": site[8], "actual_enrollment": site[9],
+            },
+            "current": {
+                "month_end": latest[0], "snapshot_date": latest[1],
+                "total_risk_score": latest[2], "risk_rank": latest[3], "risk_level": latest[4],
+                "trend": latest[5], "trend_delta": latest[6],
+                "components": {
+                    "monitoring":   latest[7],
+                    "pi":           latest[8],
+                    "recruitment":  latest[9],
+                    "signal":       latest[10],
+                    "qa":           latest[11],
+                },
+                "active_flags": active_flags,
+                "metrics": {
+                    "active_subjects":         latest[22],
+                    "days_since_last_visit":   latest[23],
+                    "sae_rate_pct":            latest[24],
+                    "major_deviations_count":  latest[25],
+                    "overdue_action_items":    latest[26],
+                    "total_action_items":      latest[27],
+                    "avg_daily_crf_submissions": latest[28],
+                    "data_query_rate_pct":     latest[29],
+                    "screen_failure_rate_pct": latest[30],
+                },
+                "recommended_action": latest[31],
+            },
+            "trend_history": trend_data,
+        }
+
+
+@app.get("/api/risk/filters")
+def risk_filters():
+    """Available filter options for the risk rankings view."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        regions = [r[0] for r in cur.execute(
+            "SELECT DISTINCT region FROM sites WHERE region IS NOT NULL ORDER BY region"
+        ).fetchall()]
+        return {
+            "regions": regions,
+            "risk_levels": ["CRITICAL", "HIGH", "ELEVATED", "MODERATE", "LOW", "MINIMAL"],
+            "trends": ["DETERIORATING", "STABLE", "IMPROVING"],
+        }
+
 
 FRONTEND_BUILD = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 
