@@ -70,6 +70,8 @@ CREATE TABLE sites (
     site_status TEXT DEFAULT 'Active',
     planned_enrollment INTEGER,
     actual_enrollment INTEGER DEFAULT 0,
+    region TEXT,
+    site_type TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -1376,6 +1378,53 @@ cur.executemany("""
 
 conn.commit()
 print("✓ TMF requirements and documents seeded (5 sites, 60 document records)")
+
+# ── Risk Ranking Table (populated by generate_risk_data.py at startup) ────────
+cur.executescript("""
+CREATE TABLE IF NOT EXISTS site_risk_monthly_snapshot (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    site_id TEXT NOT NULL,
+    month_end INTEGER NOT NULL,
+    snapshot_date TEXT NOT NULL,
+    monitoring_risk_score INTEGER DEFAULT 0,
+    pi_risk_score INTEGER DEFAULT 0,
+    recruitment_risk_score INTEGER DEFAULT 0,
+    signal_risk_points INTEGER DEFAULT 0,
+    qa_status_risk_pts INTEGER DEFAULT 0,
+    total_risk_score INTEGER DEFAULT 0,
+    risk_rank INTEGER,
+    risk_level TEXT,
+    trend_vs_prior TEXT,
+    trend_delta INTEGER DEFAULT 0,
+    sdv_backlog_flag INTEGER DEFAULT 0,
+    cra_turnover_flag INTEGER DEFAULT 0,
+    pi_oversight_flag INTEGER DEFAULT 0,
+    enrollment_below_target_flag INTEGER DEFAULT 0,
+    non_enroller_flag INTEGER DEFAULT 0,
+    high_sae_rate_flag INTEGER DEFAULT 0,
+    protocol_deviation_critical_flag INTEGER DEFAULT 0,
+    overdue_action_items_flag INTEGER DEFAULT 0,
+    high_query_rate_flag INTEGER DEFAULT 0,
+    consent_process_flag INTEGER DEFAULT 0,
+    active_subjects INTEGER DEFAULT 0,
+    days_since_last_visit INTEGER DEFAULT 0,
+    sae_rate_pct REAL DEFAULT 0,
+    major_deviations_count INTEGER DEFAULT 0,
+    overdue_action_items INTEGER DEFAULT 0,
+    total_action_items INTEGER DEFAULT 0,
+    avg_daily_crf_submissions REAL DEFAULT 0,
+    data_query_rate_pct REAL DEFAULT 0,
+    screen_failure_rate_pct REAL DEFAULT 0,
+    recommended_action TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(site_id, month_end)
+);
+CREATE INDEX IF NOT EXISTS idx_risk_site ON site_risk_monthly_snapshot(site_id);
+CREATE INDEX IF NOT EXISTS idx_risk_month ON site_risk_monthly_snapshot(month_end);
+CREATE INDEX IF NOT EXISTS idx_risk_rank ON site_risk_monthly_snapshot(risk_rank);
+""")
+conn.commit()
+print("✓ site_risk_monthly_snapshot table created (data populated by generate_risk_data.py)")
 
 # Get statistics
 print("\n5. Database Statistics:")

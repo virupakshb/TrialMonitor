@@ -425,15 +425,19 @@ def run():
     print("SITE RISK DATA GENERATION — NVX-1218.22")
     print("=" * 60)
 
-    # ── 1. Add region / site_type columns to sites ────────────────────────
-    print("\n[1/7] Adding region/site_type columns to sites table...")
+    # ── 1. Add region / site_type columns to sites (if not already there) ──
+    print("\n[1/7] Checking region/site_type columns on sites table...")
     existing_cols = [r[1] for r in cur.execute("PRAGMA table_info(sites)").fetchall()]
     if "region" not in existing_cols:
         cur.execute("ALTER TABLE sites ADD COLUMN region TEXT")
         print("  Added: region")
+    else:
+        print("  OK: region already exists")
     if "site_type" not in existing_cols:
         cur.execute("ALTER TABLE sites ADD COLUMN site_type TEXT")
         print("  Added: site_type")
+    else:
+        print("  OK: site_type already exists")
 
     # ── 2. Update existing sites with region / type ───────────────────────
     print("\n[2/7] Updating existing sites with region/type...")
@@ -683,4 +687,12 @@ def run():
 
 
 if __name__ == "__main__":
-    run()
+    try:
+        run()
+    except Exception as e:
+        import traceback
+        print("ERROR in generate_risk_data.py:")
+        traceback.print_exc()
+        # Exit 0 so uvicorn still starts; risk data simply won't be populated
+        import sys
+        sys.exit(0)
