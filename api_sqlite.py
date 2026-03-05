@@ -337,7 +337,7 @@ def root():
         "protocol": "NVX-1218.22",
         "study": "NovaPlex-450 in Advanced NSCLC",
         "sponsor": "NexaVance Therapeutics Inc.",
-        "version": "1.0.0",
+        "version": "2.0.0-risk",
         "database": "SQLite (local)",
         "status": "operational",
         "endpoints": {
@@ -358,6 +358,30 @@ def root():
             "statistics": "/api/statistics"
         }
     }
+
+# ============================================================================
+# HEALTH / VERSION ENDPOINT  (deployment diagnostics)
+# ============================================================================
+
+@app.get("/api/health")
+def get_health():
+    """Return deployment version and DB table counts for diagnostics."""
+    with get_db() as conn:
+        cur = conn.cursor()
+        site_count    = cur.execute("SELECT COUNT(*) FROM sites").fetchone()[0]
+        subject_count = cur.execute("SELECT COUNT(*) FROM subjects").fetchone()[0]
+        try:
+            snapshot_count = cur.execute(
+                "SELECT COUNT(*) FROM site_risk_monthly_snapshot"
+            ).fetchone()[0]
+        except Exception:
+            snapshot_count = -1
+        return {
+            "version": "2.0.0-risk",
+            "sites": site_count,
+            "subjects": subject_count,
+            "risk_snapshots": snapshot_count,
+        }
 
 # ============================================================================
 # PROTOCOL ENDPOINTS
