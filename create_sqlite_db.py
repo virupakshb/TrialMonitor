@@ -1460,11 +1460,22 @@ print("Ready to use with the local API server!")
 
 # ── Generate site risk data (50 sites, 3-month snapshots) ─────────────────────
 print("\n6. Generating site risk ranking data (50 sites, 3-month snapshots)...")
+_risk_error_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "risk_startup_error.txt")
+# Clear any previous error
+if os.path.exists(_risk_error_path):
+    os.remove(_risk_error_path)
 try:
     import generate_risk_data
     generate_risk_data.run()
-    print("✅ Site risk data generation complete.")
+    print("Site risk data generation complete.")
 except Exception:
     import traceback
-    print("WARNING: Site risk data generation failed — app will start without risk data:")
-    traceback.print_exc()
+    _tb = traceback.format_exc()
+    print("WARNING: Site risk data generation failed:")
+    print(_tb)
+    # Write error to file so /api/health can surface it
+    try:
+        with open(_risk_error_path, "w", encoding="utf-8") as _ef:
+            _ef.write(_tb)
+    except Exception:
+        pass

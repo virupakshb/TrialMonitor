@@ -376,12 +376,24 @@ def get_health():
             ).fetchone()[0]
         except Exception:
             snapshot_count = -1
-        return {
-            "version": "2.0.0-risk",
-            "sites": site_count,
-            "subjects": subject_count,
-            "risk_snapshots": snapshot_count,
-        }
+
+    # Check for risk startup error written by create_sqlite_db.py
+    risk_error = None
+    _err_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "risk_startup_error.txt")
+    if os.path.exists(_err_path):
+        try:
+            with open(_err_path, "r", encoding="utf-8") as _ef:
+                risk_error = _ef.read()
+        except Exception:
+            risk_error = "Error file exists but could not be read"
+
+    return {
+        "version": "2.0.0-risk",
+        "sites": site_count,
+        "subjects": subject_count,
+        "risk_snapshots": snapshot_count,
+        "risk_startup_error": risk_error,
+    }
 
 # ============================================================================
 # PROTOCOL ENDPOINTS
