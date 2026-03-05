@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
 
+// v2.0.0-risk — Risk ranking feature enabled
 // Usage Pill — compact indicator for top bar
 function UsagePill() {
   const [usage, setUsage] = useState(null);
