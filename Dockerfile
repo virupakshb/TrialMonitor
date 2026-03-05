@@ -20,6 +20,7 @@ RUN cd frontend && npm install && npm run build
 # Copy backend source
 COPY api_sqlite.py .
 COPY create_sqlite_db.py .
+COPY generate_risk_data.py .
 COPY rule_configs/ ./rule_configs/
 COPY rules_engine/ ./rules_engine/
 COPY protocol_definition.json .
