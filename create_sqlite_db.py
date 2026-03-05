@@ -1465,8 +1465,15 @@ _risk_error_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ris
 if os.path.exists(_risk_error_path):
     os.remove(_risk_error_path)
 try:
-    import generate_risk_data
-    generate_risk_data.run()
+    # Use importlib to load from explicit path — avoids sys.path issues on Railway
+    import importlib.util as _ilu
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _risk_file  = os.path.join(_script_dir, "generate_risk_data.py")
+    print(f"  Loading risk script from: {_risk_file}")
+    _spec = _ilu.spec_from_file_location("generate_risk_data", _risk_file)
+    _grd  = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_grd)
+    _grd.run()
     print("Site risk data generation complete.")
 except Exception:
     import traceback
