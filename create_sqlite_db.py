@@ -1457,3 +1457,14 @@ print("✅ SQLite database created successfully!")
 print("=" * 70)
 print("\nDatabase file: clinical_trial.db")
 print("Ready to use with the local API server!")
+
+# ── Generate site risk data (50 sites, 3-month snapshots) ─────────────────────
+print("\n6. Generating site risk ranking data (50 sites, 3-month snapshots)...")
+try:
+    import generate_risk_data
+    generate_risk_data.run()
+    print("✅ Site risk data generation complete.")
+except Exception:
+    import traceback
+    print("WARNING: Site risk data generation failed — app will start without risk data:")
+    traceback.print_exc()

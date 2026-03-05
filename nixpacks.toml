@@ -13,4 +13,4 @@ cmds = [
 ]
 
 [start]
-cmd = "python create_sqlite_db.py && python generate_risk_data.py && uvicorn api_sqlite:app --host 0.0.0.0 --port $PORT"
+cmd = "python create_sqlite_db.py && uvicorn api_sqlite:app --host 0.0.0.0 --port $PORT"
